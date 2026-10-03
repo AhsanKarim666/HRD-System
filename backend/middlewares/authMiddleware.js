@@ -1,5 +1,13 @@
 ﻿const jwt = require('jsonwebtoken');
 
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (typeof secret !== 'string' || Buffer.byteLength(secret, 'utf8') < 32) {
+    throw new Error('JWT_SECRET harus dikonfigurasi dengan minimal 32 karakter.');
+  }
+  return secret;
+};
+
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization || req.headers.Authorization;
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -9,7 +17,7 @@ const verifyToken = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret_fallback');
+    const decoded = jwt.verify(token, getJwtSecret());
     req.user = decoded;
     next();
   } catch (error) {
@@ -30,4 +38,4 @@ const requireRole = (...allowedRoles) => {
 };
 
 const authMiddleware = verifyToken;
-module.exports = { verifyToken, authorizeRole: requireRole, requireRole, authMiddleware };
+module.exports = { verifyToken, authorizeRole: requireRole, requireRole, authMiddleware, getJwtSecret };

@@ -4,6 +4,7 @@ require('dotenv').config();
 
 const { initDatabase } = require('./initDatabase');
 const { seed } = require('./seed');
+const { getJwtSecret } = require('./middlewares/authMiddleware');
 const authRoutes = require('./routes/authRoutes');
 const departmentRoutes = require('./routes/departmentRoutes');
 const positionRoutes = require('./routes/positionRoutes');
@@ -13,6 +14,7 @@ const leaveRoutes = require('./routes/leaveRoutes');
 const payrollRoutes = require('./routes/payrollRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const auditRoutes = require('./routes/auditRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -35,6 +37,7 @@ app.use('/api/payroll', payrollRoutes);
 app.use('/api/payrolls', payrollRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/audit-logs', auditRoutes);
 
 app.use((err, req, res, next) => {
   const status = err.status || 500;
@@ -46,13 +49,14 @@ app.use((err, req, res, next) => {
 
 const startServer = async () => {
   try {
+    getJwtSecret();
     await initDatabase();
     await seed();
     app.listen(PORT, () => {
       console.log(`Server aktif berjalan di http://localhost:${PORT}`);
     });
   } catch (error) {
-    console.error('Gagal menjalankan server karena init database gagal:', error.message);
+    console.error('Gagal menjalankan server:', error.message);
     process.exit(1);
   }
 };

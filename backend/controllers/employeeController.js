@@ -1,4 +1,5 @@
 const db = require('../db');
+const { recordAudit } = require('../utils/auditLogger');
 
 const getEmployees = async (req, res) => {
   try {
@@ -55,6 +56,11 @@ const createEmployee = async (req, res) => {
     ];
 
     const result = await db.query(query, values);
+    await recordAudit(req, 'employee.create', 'employee', result.rows[0].id, {
+      department_id: department_id || null,
+      position_id: position_id || null,
+      status: status || 'Active',
+    });
     res.status(201).json({
       success: true,
       message: 'Karyawan berhasil didaftarkan',
@@ -89,6 +95,9 @@ const updateEmployee = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Data karyawan tidak ditemukan' });
     }
 
+    await recordAudit(req, 'employee.update', 'employee', id, {
+      changed_fields: Object.keys(req.body || {}),
+    });
     res.status(200).json({
       success: true,
       message: 'Data karyawan berhasil diperbarui',
@@ -123,6 +132,7 @@ const deleteEmployee = async (req, res) => {
         `UPDATE employees SET status = 'Inactive' WHERE id = $1 RETURNING *`,
         [id]
       );
+      await recordAudit(req, 'employee.deactivate', 'employee', id);
       return res.status(200).json({
         success: true,
         message: 'Karyawan ditandai inactive karena memiliki riwayat terkait.',
@@ -130,6 +140,7 @@ const deleteEmployee = async (req, res) => {
     }
 
     await db.query('DELETE FROM employees WHERE id = $1', [id]);
+    await recordAudit(req, 'employee.delete', 'employee', id);
     res.status(200).json({ success: true, message: 'Data karyawan berhasil dihapus.' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

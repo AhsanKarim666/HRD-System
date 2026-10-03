@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
-const { register, login } = require('../controllers/authController');
+const { getAuditLogs } = require('../controllers/auditController');
 
-router.post('/register', verifyToken, requireRole('HRD'), register);
-router.post('/login', login);
+router.get('/', verifyToken, requireRole('HRD'), getAuditLogs);
 
 module.exports = router;

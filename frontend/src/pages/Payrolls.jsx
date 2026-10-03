@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import axiosClient from '../api/axiosClient';
+import { getCurrentUser, hasManagementAccess } from '../api/session';
 
 const Payrolls = () => {
+  const currentUser = getCurrentUser();
+  const canManage = hasManagementAccess(currentUser);
   const [payrolls, setPayrolls] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -10,6 +13,7 @@ const Payrolls = () => {
     employee_id: '',
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
+    basic_salary: 0,
     allowances: 0,
     deductions: 0,
   });
@@ -19,7 +23,7 @@ const Payrolls = () => {
     try {
       const [payRes, empRes] = await Promise.all([
         axiosClient.get('/payrolls'),
-        axiosClient.get('/employees'),
+        canManage ? axiosClient.get('/employees') : Promise.resolve({ data: { data: [] } }),
       ]);
       setPayrolls(payRes.data.data);
       setEmployees(empRes.data.data);
@@ -38,6 +42,15 @@ const Payrolls = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleEmployeeChange = (e) => {
+    const employee = employees.find((item) => String(item.id) === e.target.value);
+    setFormData({
+      ...formData,
+      employee_id: e.target.value,
+      basic_salary: employee?.base_salary ?? 0,
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -45,6 +58,7 @@ const Payrolls = () => {
         employee_id: parseInt(formData.employee_id),
         month: parseInt(formData.month),
         year: parseInt(formData.year),
+        basic_salary: Number(formData.basic_salary),
         allowances: parseFloat(formData.allowances) || 0,
         deductions: parseFloat(formData.deductions) || 0,
       };
@@ -69,8 +83,7 @@ const Payrolls = () => {
     <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', textAlign: 'left' }}>
       <h2>Manajemen Penggajian (Payroll)</h2>
 
-      {/* Form Generate Payroll */}
-      <div style={{ border: '1px solid #ccc', padding: '15px', marginBottom: '25px', borderRadius: '6px' }}>
+      {canManage && <div style={{ border: '1px solid #ccc', padding: '15px', marginBottom: '25px', borderRadius: '6px' }}>
         <h3>Generate Slip Gaji Karyawan</h3>
         <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
           <div>
@@ -78,7 +91,7 @@ const Payrolls = () => {
             <select
               name="employee_id"
               value={formData.employee_id}
-              onChange={handleChange}
+              onChange={handleEmployeeChange}
               required
               style={{ width: '100%', padding: '6px' }}
             >
@@ -123,6 +136,20 @@ const Payrolls = () => {
           </div>
 
           <div>
+            <label>Gaji Pokok Rp: </label>
+            <input
+              type="number"
+              name="basic_salary"
+              min="0"
+              step="0.01"
+              value={formData.basic_salary}
+              onChange={handleChange}
+              required
+              style={{ width: '100%', padding: '6px' }}
+            />
+          </div>
+
+          <div>
             <label>Tunjangan (Allowances) Rp: </label>
             <input
               type="number"
@@ -150,7 +177,7 @@ const Payrolls = () => {
             </button>
           </div>
         </form>
-      </div>
+      </div>}
 
       {/* Tabel Riwayat Gaji */}
       <div>

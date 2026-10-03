@@ -1,15 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import axiosClient from '../api/axiosClient';
+import { getCurrentUser } from '../api/session';
 
 const Attendances = () => {
+  const currentUser = getCurrentUser();
+  const isEmployee = currentUser?.role === 'Employee';
   const [attendances, setAttendances] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
+  const [clockingOutId, setClockingOutId] = useState(null);
 
   // Form check-in state
   const [formData, setFormData] = useState({
-    employee_id: '',
+    employee_id: currentUser?.employee_id || '',
     date: new Date().toISOString().split('T')[0],
     clock_in: '08:00',
   });
@@ -19,7 +23,7 @@ const Attendances = () => {
     try {
       const [attRes, empRes] = await Promise.all([
         axiosClient.get(`/attendances?date=${selectedDate}`),
-        axiosClient.get('/employees'),
+        isEmployee ? Promise.resolve({ data: { data: [] } }) : axiosClient.get('/employees'),
       ]);
       setAttendances(attRes.data.data);
       setEmployees(empRes.data.data);
@@ -41,11 +45,29 @@ const Attendances = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axiosClient.post('/attendances/check-in', formData);
+      await axiosClient.post('/attendances/check-in', {
+        ...formData,
+        employee_id: isEmployee ? currentUser.employee_id : formData.employee_id,
+      });
       alert('Presensi berhasil dicatat!');
       fetchData();
     } catch (err) {
       alert(err.response?.data?.message || 'Gagal mencatat presensi');
+    }
+  };
+
+  const handleClockOut = async (attendance) => {
+    setClockingOutId(attendance.id);
+    try {
+      await axiosClient.post('/attendances/check-out', {
+        employee_id: attendance.employee_id,
+        date: attendance.date ? attendance.date.split('T')[0] : selectedDate,
+      });
+      await fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal mencatat jam pulang');
+    } finally {
+      setClockingOutId(null);
     }
   };
 
@@ -57,6 +79,9 @@ const Attendances = () => {
       <div style={{ border: '1px solid #ccc', padding: '15px', marginBottom: '25px', borderRadius: '6px' }}>
         <h3>Catat Kehadiran Karyawan</h3>
         <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          {isEmployee ? (
+            <p style={{ gridColumn: 'span 2' }}>Absensi untuk {currentUser?.name || 'akun Anda'}.</p>
+          ) : (
           <div>
             <label>Karyawan: </label>
             <select 
@@ -74,8 +99,9 @@ const Attendances = () => {
               ))}
             </select>
           </div>
+          )}
 
-          <div>
+          {!isEmployee && <div>
             <label>Tanggal: </label>
             <input 
               type="date" 
@@ -85,9 +111,9 @@ const Attendances = () => {
               required 
               style={{ width: '100%', padding: '6px' }}
             />
-          </div>
+          </div>}
 
-          <div>
+          {!isEmployee && <div>
             <label>Jam Masuk (Check-in): </label>
             <input 
               type="time" 
@@ -97,7 +123,7 @@ const Attendances = () => {
               required 
               style={{ width: '100%', padding: '6px' }}
             />
-          </div>
+          </div>}
 
           <div>
             <label>Catatan: </label>
@@ -140,13 +166,15 @@ const Attendances = () => {
                 <th>Departemen</th>
                 <th>Tanggal</th>
                 <th>Jam Masuk</th>
+                <th>Jam Keluar</th>
                 <th>Status</th>
+                <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {attendances.length === 0 ? (
                 <tr>
-                  <td colSpan="6" align="center">Tidak ada log absensi pada tanggal ini.</td>
+                  <td colSpan="8" align="center">Tidak ada log absensi pada tanggal ini.</td>
                 </tr>
               ) : (
                 attendances.map((att) => (
@@ -156,12 +184,27 @@ const Attendances = () => {
                     <td>{att.department_name || '-'}</td>
                     <td>{att.date ? att.date.split('T')[0] : '-'}</td>
                     <td>{att.clock_in || '-'}</td>
+                    <td>{att.clock_out || '-'}</td>
                     <td>
                       <b style={{ 
                         color: att.status === 'Present' ? 'green' : att.status === 'Late' ? 'orange' : 'red' 
                       }}>
                         {att.status}
                       </b>
+                    </td>
+                    <td>
+                      {att.clock_out ? (
+                        'Selesai'
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={clockingOutId === att.id}
+                          onClick={() => handleClockOut(att)}
+                          style={{ padding: '5px 10px', cursor: 'pointer' }}
+                        >
+                          {clockingOutId === att.id ? 'Menyimpan...' : 'Check-out'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

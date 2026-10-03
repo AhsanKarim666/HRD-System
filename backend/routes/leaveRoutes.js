@@ -7,8 +7,8 @@ const {
   updateLeaveStatus,
 } = require('../controllers/leaveController');
 
-router.get('/', verifyToken, getLeaves);
-router.post('/', verifyToken, requestLeave);
+router.get('/', verifyToken, requireRole('HRD', 'Manager', 'Employee'), getLeaves);
+router.post('/', verifyToken, requireRole('HRD', 'Manager', 'Employee'), requestLeave);
 router.patch('/:id/status', verifyToken, requireRole('HRD', 'Manager'), updateLeaveStatus);
 
 module.exports = router;

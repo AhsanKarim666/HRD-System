@@ -7,10 +7,11 @@ Sistem manajemen sumber daya manusia (HRD) berbasis web yang dirancang untuk mem
 Proyek ini dibuat sebagai prototype aplikasi HRIS (Human Resource Information System) untuk mempermudah proses administrasi HRD secara terintegrasi dalam satu platform. Aplikasi ini mencakup beberapa modul utama seperti:
 
 - Manajemen karyawan
-- Data departemen dan jabatan
+- Manajemen departemen dan jabatan, termasuk gaji pokok default per jabatan
 - Presensi dan kehadiran
-- Pengajuan cuti
+- Pengajuan dan approval cuti dengan pencegahan jadwal tumpang tindih
 - Payroll / gaji karyawan
+- Riwayat audit untuk perubahan operasional
 - Dashboard ringkasan operasional
 - Review performa karyawan berbasis AI
 
@@ -139,13 +140,29 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=hrd_system
 PORT=5000
+JWT_SECRET=replace-with-a-random-secret-of-at-least-32-bytes
+JWT_EXPIRES_IN=1d
 GEMINI_API_KEY=your_api_key
 ```
+
+Buat secret JWT lokal dengan perintah berikut, lalu isi hasilnya pada `JWT_SECRET` di `.env`:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Jangan commit file `.env` atau membagikan secret yang dihasilkan. Template variabel tersedia di `backend/.env.example`.
 
 Lalu jalankan:
 
 ```bash
 npm run dev
+```
+
+Test backend dapat dijalankan dengan:
+
+```bash
+npm test
 ```
 
 ### 3. Setup frontend

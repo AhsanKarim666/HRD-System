@@ -1,12 +1,19 @@
 const db = require('../db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { getJwtSecret } = require('../middlewares/authMiddleware');
+const { recordAudit } = require('../utils/auditLogger');
 
 const register = async (req, res) => {
   const { name, email, password, role, employee_id } = req.body;
+  const assignedRole = role || 'Employee';
 
   if (!name || !email || !password) {
     return res.status(400).json({ success: false, message: 'Nama, email, dan password wajib diisi!' });
+  }
+
+  if (!['HRD', 'Manager', 'Employee'].includes(assignedRole)) {
+    return res.status(400).json({ success: false, message: 'Role pengguna tidak valid!' });
   }
 
   try {
@@ -21,8 +28,12 @@ const register = async (req, res) => {
       `INSERT INTO users (name, email, password_hash, role, employee_id)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, name, email, role, employee_id`,
-      [name, email, hashedPassword, role || 'Employee', employee_id || null]
+      [name, email, hashedPassword, assignedRole, employee_id || null]
     );
+    await recordAudit(req, 'user.register', 'user', result.rows[0].id, {
+      role: assignedRole,
+      employee_id: employee_id || null,
+    });
 
     res.status(201).json({
       success: true,
@@ -78,7 +89,7 @@ const login = async (req, res) => {
         email: user.email,
         employee_id: user.employee_id,
       },
-      process.env.JWT_SECRET || 'secret_fallback',
+      getJwtSecret(),
       { expiresIn: process.env.JWT_EXPIRES_IN || '1d' }
     );
 

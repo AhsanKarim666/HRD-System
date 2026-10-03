@@ -1,7 +1,15 @@
 const db = require('../db');
+const { recordAudit } = require('../utils/auditLogger');
 
 const getPayrolls = async (req, res) => {
   const { month, year, employee_id } = req.query;
+  const userEmployeeId = req.user.role === 'Employee' ? req.user.employee_id : null;
+  if (req.user.role === 'Employee' && !userEmployeeId) {
+    return res.status(403).json({ success: false, message: 'Akun karyawan belum terhubung ke data karyawan.' });
+  }
+  if (userEmployeeId && employee_id && String(employee_id) !== String(userEmployeeId)) {
+    return res.status(403).json({ success: false, message: 'Akses hanya diizinkan untuk slip gaji sendiri.' });
+  }
 
   try {
     let query = `
@@ -37,8 +45,9 @@ const getPayrolls = async (req, res) => {
     query += ` AND EXTRACT(YEAR FROM CAST(p.period AS DATE)) = $${params.length}`;
     }
 
-    if (employee_id) {
-    params.push(employee_id);
+    const targetEmployeeId = userEmployeeId || employee_id;
+    if (targetEmployeeId) {
+    params.push(targetEmployeeId);
     query += ` AND p.employee_id = $${params.length}`;
     }
 
@@ -52,17 +61,46 @@ const getPayrolls = async (req, res) => {
 };
 
 const generatePayroll = async (req, res) => {
-  const { employee_id, month, year, allowances = 0, deductions = 0 } = req.body;
+  const { employee_id, month, year, basic_salary, allowances, deductions } = req.body;
 
-  if (!employee_id || !month || !year) {
+  const numericMonth = Number(month);
+  const numericYear = Number(year);
+  if (!Number.isInteger(Number(employee_id)) || Number(employee_id) < 1 ||
+      !Number.isInteger(numericMonth) || numericMonth < 1 || numericMonth > 12 ||
+      !Number.isInteger(numericYear) || numericYear < 2000 || numericYear > 2100) {
     return res.status(400).json({
-    success: false,
-    message: 'Employee ID, bulan, dan tahun wajib diisi!',
+      success: false,
+      message: 'Karyawan, bulan (1-12), dan tahun (2000-2100) harus valid.',
+    });
+  }
+
+  const parseAmount = (value, fieldName) => {
+    if (value === undefined) return { value: 0 };
+    const amount = Number(value);
+    if (value === null || String(value).trim() === '' || !Number.isFinite(amount) || amount < 0) {
+      return { error: `${fieldName} harus berupa angka nol atau lebih.` };
+    }
+    return { value: amount };
+  };
+
+  const requestedBasicSalary = Number(basic_salary);
+  if (basic_salary !== undefined && (basic_salary === null || String(basic_salary).trim() === '' || !Number.isFinite(requestedBasicSalary) || requestedBasicSalary < 0)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Gaji pokok harus berupa angka nol atau lebih.',
+    });
+  }
+  const parsedAllowances = parseAmount(allowances, 'Tunjangan');
+  const parsedDeductions = parseAmount(deductions, 'Potongan');
+  if (parsedAllowances.error || parsedDeductions.error) {
+    return res.status(400).json({
+      success: false,
+      message: parsedAllowances.error || parsedDeductions.error,
     });
   }
 
   try {
-    const periodValue = `${year}-${String(month).padStart(2, '0')}-01`;
+    const periodValue = `${numericYear}-${String(numericMonth).padStart(2, '0')}-01`;
     const existingPayroll = await db.query(
     'SELECT id FROM payroll WHERE employee_id = $1 AND period = $2',
     [employee_id, periodValue]
@@ -87,9 +125,17 @@ const generatePayroll = async (req, res) => {
     return res.status(404).json({ success: false, message: 'Karyawan tidak ditemukan!' });
     }
 
-    const basicSalary = Number(employeeData.rows[0].base_salary) || 0;
-    const totalAllowances = Number(allowances) || 0;
-    const totalDeductions = Number(deductions) || 0;
+    const basicSalary = basic_salary === undefined
+      ? Number(employeeData.rows[0].base_salary) || 0
+      : requestedBasicSalary;
+    const totalAllowances = parsedAllowances.value;
+    const totalDeductions = parsedDeductions.value;
+    if (totalDeductions > basicSalary + totalAllowances) {
+      return res.status(400).json({
+        success: false,
+        message: 'Potongan tidak boleh melebihi gaji pokok dan tunjangan.',
+      });
+    }
     const netSalary = basicSalary + totalAllowances - totalDeductions;
 
     const result = await db.query(
@@ -98,6 +144,11 @@ const generatePayroll = async (req, res) => {
      RETURNING *`,
     [employee_id, periodValue, basicSalary, totalAllowances, totalDeductions, netSalary]
     );
+    await recordAudit(req, 'payroll.generate', 'payroll', result.rows[0].id, {
+      employee_id,
+      period: periodValue,
+      payment_status: 'Unpaid',
+    });
 
     res.status(201).json({
     success: true,
@@ -105,6 +156,9 @@ const generatePayroll = async (req, res) => {
     data: result.rows[0],
     });
   } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ success: false, message: 'Slip gaji periode ini sudah dibuat sebelumnya!' });
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -132,6 +186,9 @@ const updatePaymentStatus = async (req, res) => {
     if (result.rows.length === 0) {
     return res.status(404).json({ success: false, message: 'Data payroll tidak ditemukan' });
     }
+    await recordAudit(req, 'payroll.payment_status', 'payroll', id, {
+      payment_status,
+    });
 
     res.status(200).json({
     success: true,

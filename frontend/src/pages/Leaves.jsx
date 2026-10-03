@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import axiosClient from '../api/axiosClient';
+import { getCurrentUser, hasManagementAccess } from '../api/session';
 
 const Leaves = () => {
+  const currentUser = getCurrentUser();
+  const isEmployee = currentUser?.role === 'Employee';
+  const canManage = hasManagementAccess(currentUser);
   const [leaves, setLeaves] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
-    employee_id: '',
+    employee_id: currentUser?.employee_id || '',
+    leave_type: 'Annual',
     start_date: '',
     end_date: '',
     reason: '',
@@ -18,7 +23,7 @@ const Leaves = () => {
     try {
       const [leaveRes, empRes] = await Promise.all([
         axiosClient.get('/leaves'),
-        axiosClient.get('/employees'),
+        isEmployee ? Promise.resolve({ data: { data: [] } }) : axiosClient.get('/employees'),
       ]);
       setLeaves(leaveRes.data.data);
       setEmployees(empRes.data.data);
@@ -40,10 +45,14 @@ const Leaves = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axiosClient.post('/leaves', formData);
+      await axiosClient.post('/leaves', {
+        ...formData,
+        employee_id: isEmployee ? currentUser.employee_id : formData.employee_id,
+      });
       alert('Pengajuan cuti berhasil dikirim!');
       setFormData({
-        employee_id: '',
+        employee_id: currentUser?.employee_id || '',
+        leave_type: 'Annual',
         start_date: '',
         end_date: '',
         reason: '',
@@ -72,6 +81,9 @@ const Leaves = () => {
       <div style={{ border: '1px solid #ccc', padding: '15px', marginBottom: '25px', borderRadius: '6px' }}>
         <h3>Formulir Pengajuan Cuti</h3>
         <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          {isEmployee ? (
+            <p style={{ gridColumn: 'span 2' }}>Pengajuan untuk {currentUser?.name || 'akun Anda'}.</p>
+          ) : (
           <div style={{ gridColumn: 'span 2' }}>
             <label>Pilih Karyawan: </label>
             <select 
@@ -89,6 +101,24 @@ const Leaves = () => {
               ))}
             </select>
           </div>
+          )}
+
+          <div style={{ gridColumn: 'span 2' }}>
+            <label>Jenis Cuti: </label>
+            <select
+              name="leave_type"
+              value={formData.leave_type}
+              onChange={handleChange}
+              required
+              style={{ width: '100%', padding: '6px' }}
+            >
+              <option value="Annual">Cuti tahunan</option>
+              <option value="Sick">Sakit</option>
+              <option value="Personal">Keperluan pribadi</option>
+              <option value="Maternity">Cuti melahirkan</option>
+              <option value="Other">Lainnya</option>
+            </select>
+          </div>
 
           <div>
             <label>Tanggal Mulai: </label>
@@ -97,6 +127,7 @@ const Leaves = () => {
               name="start_date" 
               value={formData.start_date} 
               onChange={handleChange} 
+              max={formData.end_date || undefined}
               required 
               style={{ width: '100%', padding: '6px' }}
             />
@@ -109,6 +140,7 @@ const Leaves = () => {
               name="end_date" 
               value={formData.end_date} 
               onChange={handleChange} 
+              min={formData.start_date || undefined}
               required 
               style={{ width: '100%', padding: '6px' }}
             />
@@ -145,33 +177,35 @@ const Leaves = () => {
               <tr style={{ background: '#333', color: '#fff' }}>
                 <th>Nama Karyawan</th>
                 <th>Departemen</th>
+                <th>Jenis Cuti</th>
                 <th>Tanggal Mulai</th>
                 <th>Tanggal Selesai</th>
                 <th>Alasan</th>
                 <th>Status</th>
-                <th>Aksi Approval</th>
+                {canManage && <th>Aksi Approval</th>}
               </tr>
             </thead>
             <tbody>
               {leaves.length === 0 ? (
                 <tr>
-                  <td colSpan="7" align="center">Belum ada pengajuan cuti.</td>
+                  <td colSpan={canManage ? 8 : 7} align="center">Belum ada pengajuan cuti.</td>
                 </tr>
               ) : (
                 leaves.map((l) => (
                   <tr key={l.id}>
                     <td>{l.full_name}</td>
                     <td>{l.department_name || '-'}</td>
+                    <td>{l.leave_type || '-'}</td>
                     <td>{l.start_date ? l.start_date.split('T')[0] : '-'}</td>
                     <td>{l.end_date ? l.end_date.split('T')[0] : '-'}</td>
                     <td>{l.reason || '-'}</td>
-                    <td>
+                    {canManage && <td>
                       <b style={{
                         color: l.status === 'Approved' ? 'green' : l.status === 'Rejected' ? 'red' : 'orange'
                       }}>
                         {l.status}
                       </b>
-                    </td>
+                    </td>}
                     <td>
                       {l.status === 'Pending' ? (
                         <div style={{ display: 'flex', gap: '5px' }}>

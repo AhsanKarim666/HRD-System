@@ -170,6 +170,7 @@ async function initDatabase() {
         reason TEXT,
         status VARCHAR(20) NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected')),
         approver_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        reviewed_at TIMESTAMP,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         UNIQUE (employee_id, start_date, end_date)
       );
@@ -177,7 +178,8 @@ async function initDatabase() {
 
     await db.query(`
       ALTER TABLE leaves
-        ADD COLUMN IF NOT EXISTS leave_type VARCHAR(50) NOT NULL DEFAULT 'Annual';
+        ADD COLUMN IF NOT EXISTS leave_type VARCHAR(50) NOT NULL DEFAULT 'Annual',
+        ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP;
     `);
 
     await db.query(`
@@ -196,11 +198,25 @@ async function initDatabase() {
     `);
 
     await db.query(`
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id BIGSERIAL PRIMARY KEY,
+        actor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        actor_role VARCHAR(20) NOT NULL,
+        action VARCHAR(100) NOT NULL,
+        entity_type VARCHAR(50) NOT NULL,
+        entity_id TEXT,
+        details JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await db.query(`
       CREATE INDEX IF NOT EXISTS idx_employees_department_id ON employees(department_id);
       CREATE INDEX IF NOT EXISTS idx_employees_position_id ON employees(position_id);
       CREATE INDEX IF NOT EXISTS idx_attendances_employee_date ON attendances(employee_id, date);
       CREATE INDEX IF NOT EXISTS idx_leaves_status ON leaves(status);
       CREATE INDEX IF NOT EXISTS idx_payroll_employee_period ON payroll(employee_id, period);
+      CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC, id DESC);
     `);
 
     console.log('Database schema initialized successfully.');

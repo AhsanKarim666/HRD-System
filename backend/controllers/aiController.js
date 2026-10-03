@@ -96,16 +96,25 @@ Berikan respons dalam bahasa Indonesia dengan format:
 
     const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
 
-    const apiRes = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: promptText }] }],
-      }),
-    });
+    let apiRes;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      apiRes = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: promptText }] }],
+        }),
+      });
+
+      if (apiRes.status !== 503 || attempt === 2) {
+        break;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (2 ** attempt)));
+    }
 
     const data = await apiRes.json();
 

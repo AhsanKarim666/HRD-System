@@ -1,9 +1,17 @@
 const db = require('../db');
+const { recordAudit } = require('../utils/auditLogger');
 
 const normalizeDate = (value) => value || new Date().toISOString().slice(0, 10);
 
 const getAttendances = async (req, res) => {
   const { date, employee_id } = req.query;
+  const userEmployeeId = req.user.role === 'Employee' ? req.user.employee_id : null;
+  if (req.user.role === 'Employee' && !userEmployeeId) {
+    return res.status(403).json({ success: false, message: 'Akun karyawan belum terhubung ke data karyawan.' });
+  }
+  if (userEmployeeId && employee_id && String(employee_id) !== String(userEmployeeId)) {
+    return res.status(403).json({ success: false, message: 'Akses hanya diizinkan untuk data absensi sendiri.' });
+  }
   const targetDate = normalizeDate(date);
 
   try {
@@ -30,8 +38,9 @@ const getAttendances = async (req, res) => {
       query += ` AND a.date = $${params.length}`;
     }
 
-    if (employee_id) {
-      params.push(employee_id);
+    const targetEmployeeId = userEmployeeId || employee_id;
+    if (targetEmployeeId) {
+      params.push(targetEmployeeId);
       query += ` AND a.employee_id = $${params.length}`;
     }
 
@@ -46,15 +55,21 @@ const getAttendances = async (req, res) => {
 
 const getTodayAttendance = async (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
+  const userEmployeeId = req.user.role === 'Employee' ? req.user.employee_id : null;
+  if (req.user.role === 'Employee' && !userEmployeeId) {
+    return res.status(403).json({ success: false, message: 'Akun karyawan belum terhubung ke data karyawan.' });
+  }
   try {
+    const values = [today];
+    const employeeFilter = userEmployeeId ? ` AND a.employee_id = $${values.push(userEmployeeId)}` : '';
     const result = await db.query(
       `SELECT a.*, e.nik, e.full_name, d.name AS department_name
        FROM attendances a
        JOIN employees e ON e.id = a.employee_id
        LEFT JOIN departments d ON d.id = e.department_id
-       WHERE a.date = $1
+       WHERE a.date = $1${employeeFilter}
        ORDER BY a.clock_in ASC NULLS LAST`,
-      [today]
+      values
     );
 
     res.status(200).json({ success: true, data: result.rows });
@@ -65,17 +80,23 @@ const getTodayAttendance = async (req, res) => {
 
 const checkIn = async (req, res) => {
   const { employee_id, date, clock_in } = req.body;
-  const today = normalizeDate(date);
-  const currentTime = clock_in || new Date().toTimeString().slice(0, 8);
+  const targetEmployeeId = req.user.role === 'Employee' ? req.user.employee_id : employee_id;
+  const isEmployee = req.user.role === 'Employee';
+  const today = isEmployee ? new Date().toISOString().slice(0, 10) : normalizeDate(date);
+  const currentTime = isEmployee ? new Date().toTimeString().slice(0, 8) : clock_in || new Date().toTimeString().slice(0, 8);
 
-  if (!employee_id) {
+  if (req.user.role === 'Employee' && (!targetEmployeeId || (employee_id && String(employee_id) !== String(targetEmployeeId)))) {
+    return res.status(403).json({ success: false, message: 'Akses hanya diizinkan untuk absensi sendiri.' });
+  }
+
+  if (!targetEmployeeId) {
     return res.status(400).json({ success: false, message: 'Employee ID wajib disertakan!' });
   }
 
   try {
     const existing = await db.query(
       'SELECT * FROM attendances WHERE employee_id = $1 AND date = $2',
-      [employee_id, today]
+      [targetEmployeeId, today]
     );
 
     if (existing.rows.length > 0) {
@@ -88,8 +109,13 @@ const checkIn = async (req, res) => {
       `INSERT INTO attendances (employee_id, date, clock_in, status)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [employee_id, today, currentTime, status]
+      [targetEmployeeId, today, currentTime, status]
     );
+    await recordAudit(req, 'attendance.check_in', 'attendance', result.rows[0].id, {
+      employee_id: targetEmployeeId,
+      date: today,
+      status,
+    });
 
     res.status(201).json({
       success: true,
@@ -103,17 +129,23 @@ const checkIn = async (req, res) => {
 
 const checkOut = async (req, res) => {
   const { employee_id, date, clock_out } = req.body;
-  const today = normalizeDate(date);
-  const currentTime = clock_out || new Date().toTimeString().slice(0, 8);
+  const targetEmployeeId = req.user.role === 'Employee' ? req.user.employee_id : employee_id;
+  const isEmployee = req.user.role === 'Employee';
+  const today = isEmployee ? new Date().toISOString().slice(0, 10) : normalizeDate(date);
+  const currentTime = isEmployee ? new Date().toTimeString().slice(0, 8) : clock_out || new Date().toTimeString().slice(0, 8);
 
-  if (!employee_id) {
+  if (req.user.role === 'Employee' && (!targetEmployeeId || (employee_id && String(employee_id) !== String(targetEmployeeId)))) {
+    return res.status(403).json({ success: false, message: 'Akses hanya diizinkan untuk absensi sendiri.' });
+  }
+
+  if (!targetEmployeeId) {
     return res.status(400).json({ success: false, message: 'Employee ID wajib disertakan!' });
   }
 
   try {
     const existing = await db.query(
       'SELECT * FROM attendances WHERE employee_id = $1 AND date = $2',
-      [employee_id, today]
+      [targetEmployeeId, today]
     );
 
     if (existing.rows.length === 0) {
@@ -129,8 +161,12 @@ const checkOut = async (req, res) => {
        SET clock_out = $1
        WHERE employee_id = $2 AND date = $3
        RETURNING *`,
-      [currentTime, employee_id, today]
+      [currentTime, targetEmployeeId, today]
     );
+    await recordAudit(req, 'attendance.check_out', 'attendance', result.rows[0].id, {
+      employee_id: targetEmployeeId,
+      date: today,
+    });
 
     res.status(200).json({
       success: true,

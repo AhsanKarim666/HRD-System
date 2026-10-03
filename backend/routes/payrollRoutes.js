@@ -7,7 +7,7 @@ const {
   updatePaymentStatus,
 } = require('../controllers/payrollController');
 
-router.get('/', verifyToken, getPayrolls);
+router.get('/', verifyToken, requireRole('HRD', 'Manager', 'Employee'), getPayrolls);
 router.post('/', verifyToken, requireRole('HRD', 'Manager'), generatePayroll);
 router.post('/generate', verifyToken, requireRole('HRD', 'Manager'), generatePayroll);
 router.patch('/:id/status', verifyToken, requireRole('HRD', 'Manager'), updatePaymentStatus);

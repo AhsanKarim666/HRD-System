@@ -8,6 +8,10 @@ import Attendances from './pages/Attendances';
 import Leaves from './pages/Leaves';
 import Payrolls from './pages/Payrolls';
 import AiAnalytics from './pages/AiAnalytics';
+import Departments from './pages/Departments';
+import Positions from './pages/Positions';
+import AuditLogs from './pages/AuditLogs';
+import { hasManagementAccess } from './api/session';
 
 const getSession = () => {
   try {
@@ -34,6 +38,8 @@ const getSession = () => {
 function App() {
   const [session, setSession] = useState(() => getSession());
   const isAuthenticated = !!session?.token;
+  const canManage = hasManagementAccess(session?.user);
+  const isHrd = session?.user?.role === 'HRD';
 
   return (
     <BrowserRouter>
@@ -43,12 +49,15 @@ function App() {
           path="/"
           element={isAuthenticated ? <Layout /> : <Navigate to="/login" replace />}
         >
-          <Route index element={<Dashboard />} />
-          <Route path="employees" element={<Employees />} />
+          <Route index element={canManage ? <Dashboard /> : <Navigate to="/attendances" replace />} />
+          <Route path="employees" element={canManage ? <Employees /> : <Navigate to="/attendances" replace />} />
+          <Route path="departments" element={canManage ? <Departments /> : <Navigate to="/attendances" replace />} />
+          <Route path="positions" element={canManage ? <Positions /> : <Navigate to="/attendances" replace />} />
+          <Route path="audit-logs" element={isHrd ? <AuditLogs /> : <Navigate to="/attendances" replace />} />
           <Route path="attendances" element={<Attendances />} />
           <Route path="leaves" element={<Leaves />} />
           <Route path="payrolls" element={<Payrolls />} />
-          <Route path="ai-analytics" element={<AiAnalytics />} />
+          <Route path="ai-analytics" element={canManage ? <AiAnalytics /> : <Navigate to="/attendances" replace />} />
         </Route>
         <Route path="*" element={<Navigate to={isAuthenticated ? '/' : '/login'} replace />} />
       </Routes>

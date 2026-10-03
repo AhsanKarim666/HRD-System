@@ -7,18 +7,30 @@ import {
   CalendarOff, 
   Wallet, 
   Sparkles,
-  LogOut 
+  LogOut,
+  Building2,
+  Briefcase,
+  ClipboardList,
 } from 'lucide-react';
+import { getCurrentUser, hasManagementAccess } from '../api/session';
 
 const Sidebar = () => {
+  const currentUser = getCurrentUser();
+  const canManage = hasManagementAccess(currentUser);
   const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Karyawan', path: '/employees', icon: Users },
+    { name: 'Dashboard', path: '/', icon: LayoutDashboard, adminOnly: true },
+    { name: 'Karyawan', path: '/employees', icon: Users, adminOnly: true },
+    { name: 'Departemen', path: '/departments', icon: Building2, adminOnly: true },
+    { name: 'Jabatan', path: '/positions', icon: Briefcase, adminOnly: true },
     { name: 'Absensi', path: '/attendances', icon: CalendarCheck },
     { name: 'Cuti & Izin', path: '/leaves', icon: CalendarOff },
     { name: 'Payroll', path: '/payrolls', icon: Wallet },
-    { name: 'AI Analytics', path: '/ai-analytics', icon: Sparkles },
+    { name: 'AI Analytics', path: '/ai-analytics', icon: Sparkles, adminOnly: true },
+    { name: 'Riwayat Aktivitas', path: '/audit-logs', icon: ClipboardList, hrdOnly: true },
   ];
+  const visibleItems = navItems.filter((item) =>
+    (!item.adminOnly || canManage) && (!item.hrdOnly || currentUser?.role === 'HRD')
+  );
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -40,7 +52,7 @@ const Sidebar = () => {
       </div>
 
       <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-        {navItems.map((item) => {
+        {visibleItems.map((item) => {
           const Icon = item.icon;
           return (
             <NavLink
