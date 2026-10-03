@@ -75,7 +75,14 @@ Format respons dalam bahasa Indonesia yang ringkas dan profesional:
 2. Catatan Evaluasi & Rekomendasi HR (2-3 poin ringkas)
 `.trim();
 
-    const apiKey = process.env.GEMINI_API_KEY || 'AIzaSyC-vPKfUas0CH7vXGw26wcQX8lJnRvKOZ0';
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        message: 'GEMINI_API_KEY belum dikonfigurasi.',
+      });
+    }
+
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const apiRes = await fetch(geminiUrl, {
