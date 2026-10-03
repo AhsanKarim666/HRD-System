@@ -7,14 +7,21 @@ const getAuditLogs = async (req, res) => {
   const offset = Number.isInteger(requestedOffset) ? Math.max(requestedOffset, 0) : 0;
 
   try {
-    const result = await db.query(
-      `SELECT id, actor_id, actor_role, action, entity_type, entity_id, details, created_at
-       FROM audit_logs
-       ORDER BY id DESC
-       LIMIT $1 OFFSET $2`,
-      [limit, offset]
-    );
-    res.status(200).json({ success: true, data: result.rows, pagination: { limit, offset } });
+    const [result, count] = await Promise.all([
+      db.query(
+        `SELECT id, actor_id, actor_role, action, entity_type, entity_id, details, created_at
+         FROM audit_logs
+         ORDER BY id DESC
+         LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      ),
+      db.query('SELECT COUNT(*)::int AS total FROM audit_logs'),
+    ]);
+    res.status(200).json({
+      success: true,
+      data: result.rows,
+      pagination: { limit, offset, total: Number(count.rows[0]?.total || 0) },
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -1,4 +1,7 @@
-require('dotenv').config();
+const dotenvConfig = require('dotenv').config();
+const geminiApiKey = process.env.NODE_ENV === 'production'
+  ? process.env.GEMINI_API_KEY
+  : dotenvConfig.parsed?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 const db = require('../db');
 
 const summarizeEmployeePerformance = async (req, res) => {
@@ -75,18 +78,24 @@ const summarizeEmployeePerformance = async (req, res) => {
     };
 
     const promptText = `
-Anda adalah Senior HR Specialist. Analisis seluruh data karyawan, absensi, cuti, dan payroll dalam JSON berikut. Gunakan hanya fakta yang tersedia; nyatakan jika suatu data kosong dan jangan mengarang.
+Anda adalah Senior HR Specialist. Susun analisis kinerja karyawan dari data JSON berikut. Gunakan hanya fakta yang tersedia, jangan mengarang, dan jangan menyimpulkan hal yang tidak didukung data. Tulis seluruh jawaban dalam bahasa Indonesia profesional.
 
 ${JSON.stringify(analysisData, null, 2)}
 
-Berikan respons dalam bahasa Indonesia dengan format:
-1. Ringkasan profil dan kinerja pada periode ini.
-2. Analisis absensi serta cuti, termasuk pola yang terlihat.
-3. Ringkasan payroll (gaji pokok, tunjangan, potongan, gaji bersih, status pembayaran) atau nyatakan belum tersedia.
-4. Catatan evaluasi dan rekomendasi HR yang spesifik berdasarkan data.
+Berikan laporan Markdown tanpa kalimat pembuka, garis pemisah, atau code fence, dengan struktur berikut:
+## Ringkasan profil dan kinerja
+Ringkas profil relevan dan jelaskan jika metrik kinerja formal tidak tersedia.
+## Kehadiran dan cuti
+Jelaskan jumlah/status absensi dan cuti serta pola yang benar-benar terlihat. Nyatakan jika data tidak tersedia.
+## Payroll
+Ringkas gaji pokok, tunjangan, potongan, gaji bersih, dan status pembayaran. Nyatakan jika belum tersedia.
+## Catatan dan rekomendasi HR
+Pisahkan fakta yang teramati dari rekomendasi. Berikan rekomendasi spesifik dan proporsional; bila data terbatas, sebutkan keterbatasannya.
+
+Gunakan paragraf singkat dan daftar berpoin hanya jika membantu keterbacaan. Jangan memberi diagnosis, memberi label negatif pada karyawan, atau mengarang nilai kinerja.
 `.trim();
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = geminiApiKey;
     if (!apiKey) {
       return res.status(500).json({
         success: false,

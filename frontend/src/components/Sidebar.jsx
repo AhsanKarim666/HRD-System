@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { getCurrentUser, hasManagementAccess } from '../api/session';
 
-const Sidebar = () => {
+const Sidebar = ({ open, onClose }) => {
   const currentUser = getCurrentUser();
   const canManage = hasManagementAccess(currentUser);
   const navItems = [
@@ -40,31 +40,27 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="w-64 bg-slate-900 text-slate-200 flex flex-col min-h-screen border-r border-slate-800">
-      <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-md shadow-blue-500/30">
+    <aside className="app-sidebar" data-open={open}>
+      <div className="sidebar-brand">
+        <div className="brand-mark">
           HR
         </div>
         <div>
-          <h1 className="font-bold text-white text-base tracking-wide leading-tight">HRIS Portal</h1>
-          <p className="text-xs text-slate-400">Enterprise System</p>
+          <div className="brand-name">HRIS Portal</div>
+          <div className="brand-caption">People operations</div>
         </div>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
+      <nav className="sidebar-nav" aria-label="Navigasi utama">
+        <div className="sidebar-section-label">Workspace</div>
         {visibleItems.map((item) => {
           const Icon = item.icon;
           return (
             <NavLink
               key={item.path}
               to={item.path}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/40'
-                    : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-100'
-                }`
-              }
+              onClick={onClose}
+              className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
             >
               <Icon size={18} />
               {item.name}
@@ -73,10 +69,10 @@ const Sidebar = () => {
         })}
       </nav>
 
-      <div className="p-4 border-t border-slate-800">
+      <div className="sidebar-footer">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-rose-400 hover:bg-rose-950/30 transition-colors"
+          className="logout-button flex items-center gap-3 text-sm font-medium"
         >
           <LogOut size={18} />
           Keluar

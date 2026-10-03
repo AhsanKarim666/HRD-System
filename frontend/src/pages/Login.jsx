@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowRight, LockKeyhole, Mail } from 'lucide-react';
 import axiosClient from '../api/axiosClient';
 
 const Login = ({ onLogin }) => {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: 'hrd@hris.corp', password: 'admin123' });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -41,59 +42,82 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-8">
-        <div className="mb-6 text-center">
-          <div className="mx-auto flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 text-white text-2xl font-bold shadow-lg shadow-blue-500/20">
+    <main className="login-screen">
+      <section className="login-aside" aria-label="HRIS Portal">
+        <div className="login-brand">
+          <div className="brand-mark">
             HR
           </div>
-          <h1 className="mt-5 text-2xl font-bold text-slate-900">HRIS Portal</h1>
-          <p className="mt-2 text-sm text-slate-500">Masuk untuk mengakses dashboard sumber daya manusia</p>
+          <div>
+            <div className="brand-name">HRIS Portal</div>
+            <div className="brand-caption">People operations</div>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+        <div className="login-aside-copy">
+          <div className="login-aside-kicker">INTERNAL PEOPLE SYSTEM</div>
+          <h2>Urus tim dengan lebih teratur.</h2>
+          <p>Absensi, cuti, dan penggajian dalam satu ruang kerja yang jelas.</p>
+          <div className="login-aside-rule" />
+        </div>
+
+        <div className="login-aside-foot">HRIS Portal · Workspace internal</div>
+      </section>
+
+      <section className="login-main">
+        <div className="login-form-wrap">
+          <div className="login-eyebrow">AKSES WORKSPACE</div>
+          <h1>Selamat datang</h1>
+          <p className="login-form-subtitle">Masuk dengan akun perusahaan Anda.</p>
+
+          <form onSubmit={handleSubmit} className="login-form">
+            <div className="login-field">
+              <label htmlFor="login-email">Email</label>
             <input
+              id="login-email"
               type="email"
               name="email"
               value={form.email}
               onChange={handleChange}
+              autoComplete="username"
+              placeholder="nama@perusahaan.id"
               required
-              className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <div className="login-field">
+              <label htmlFor="login-password">Password</label>
             <input
+              id="login-password"
               type="password"
               name="password"
               value={form.password}
               onChange={handleChange}
+              autoComplete="current-password"
               required
-              className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           {error && (
-            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">{error}</div>
+              <div className="inline-alert" role="alert">{error}</div>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+              className="login-submit"
           >
-            {loading ? 'Memeriksa kredensial...' : 'Masuk ke Sistem'}
+              {loading ? <><LockKeyhole size={16} /> Memeriksa kredensial...</> : <>Masuk ke sistem <ArrowRight size={16} /></>}
           </button>
-        </form>
+          </form>
 
-        <div className="mt-6 rounded-xl bg-slate-50 p-3 text-xs text-slate-600 border border-slate-200">
-          Demo akun: <span className="font-semibold">hrd@hris.corp</span> / <span className="font-semibold">admin123</span>
+          <div className="login-help">
+            <Mail size={13} aria-hidden="true" />
+            <span>Gunakan email dan password yang diberikan administrator.</span>
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 };
 

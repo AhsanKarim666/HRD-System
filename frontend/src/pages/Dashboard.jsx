@@ -34,10 +34,10 @@ const Dashboard = () => {
     }).format(Number(value || 0));
 
   const cards = [
-    { title: 'Total Karyawan Aktif', value: stats.totalEmployees, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { title: 'Kehadiran Hari Ini', value: stats.presentToday, icon: CalendarCheck, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { title: 'Terlambat Hari Ini', value: stats.lateToday, icon: Clock3, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { title: 'Proyeksi Gaji', value: toCurrency(stats.payrollProjection), icon: Wallet, color: 'text-violet-600', bg: 'bg-violet-50' },
+    { title: 'Karyawan aktif', value: stats.totalEmployees, icon: Users, tone: 'mint' },
+    { title: 'Hadir hari ini', value: stats.presentToday, icon: CalendarCheck, tone: 'sage' },
+    { title: 'Terlambat', value: stats.lateToday, icon: Clock3, tone: 'amber' },
+    { title: 'Proyeksi gaji', value: toCurrency(stats.payrollProjection), icon: Wallet, tone: 'copper' },
   ];
 
   const shortcuts = [
@@ -49,39 +49,48 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Executive HR Dashboard</h1>
-        <p className="text-sm text-slate-500 mt-1">Ringkasan operasional SDM dan status positif strategis perusahaan.</p>
+    <div className="dashboard-page space-y-6">
+      <div className="page-heading dashboard-heading">
+        <div>
+          <div className="dashboard-eyebrow">PEOPLE OPERATIONS</div>
+          <h1>Ringkasan HR</h1>
+          <p>Gambaran operasional tim hari ini.</p>
+        </div>
+        <div className="dashboard-date">{new Intl.DateTimeFormat('id-ID', { dateStyle: 'full' }).format(new Date())}</div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+      <div className="dashboard-kpi-grid">
         {cards.map((card, idx) => {
           const Icon = card.icon;
           return (
-            <div key={idx} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div key={idx} className={`dashboard-kpi ${card.tone}`}>
               <div>
-                <p className="text-sm font-medium text-slate-500">{card.title}</p>
-                <p className="text-2xl font-extrabold text-slate-900 mt-2">{card.value}</p>
+                <p className="dashboard-kpi-label">{card.title}</p>
+                <p className="dashboard-kpi-value">{card.value}</p>
               </div>
-              <div className={`p-3.5 rounded-xl ${card.bg} ${card.color}`}>
-                <Icon size={24} />
+              <div className="dashboard-kpi-icon">
+                <Icon size={19} strokeWidth={1.8} />
               </div>
             </div>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-6">
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-lg font-bold text-slate-900">Karyawan Baru Terakhir</h2>
-            <span className="text-sm text-slate-500">{stats.pendingLeaves} pengajuan pending</span>
+      <div className="dashboard-lower-grid">
+        <section className="dashboard-section">
+          <div className="dashboard-section-heading">
+            <div>
+              <div className="dashboard-eyebrow">PEOPLE</div>
+              <h2>Karyawan terbaru</h2>
+            </div>
+            <NavLink className="dashboard-inline-link" to="/leaves">
+              {stats.pendingLeaves} cuti menunggu
+            </NavLink>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-slate-200">
-            <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-              <thead className="bg-slate-50 text-slate-700">
+          <div className="dashboard-table-wrap">
+            <table className="dashboard-table">
+              <thead>
                 <tr>
                   <th className="px-4 py-3 font-semibold">Nama</th>
                   <th className="px-4 py-3 font-semibold">NIK</th>
@@ -89,41 +98,46 @@ const Dashboard = () => {
                   <th className="px-4 py-3 font-semibold">Jabatan</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 bg-white">
+              <tbody>
                 {stats.recentEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="px-4 py-6 text-center text-slate-500">Belum ada data karyawan.</td>
+                    <td colSpan="4" className="dashboard-empty">Belum ada data karyawan.</td>
                   </tr>
                 ) : (
                   stats.recentEmployees.map((employee) => (
                     <tr key={employee.id}>
-                      <td className="px-4 py-3 font-medium text-slate-800">{employee.full_name}</td>
-                      <td className="px-4 py-3 text-slate-600">{employee.nik}</td>
-                      <td className="px-4 py-3 text-slate-600">{employee.department_name || '-'}</td>
-                      <td className="px-4 py-3 text-slate-600">{employee.position_name || '-'}</td>
+                      <td className="employee-name">{employee.full_name}</td>
+                      <td>{employee.nik}</td>
+                      <td>{employee.department_name || '-'}</td>
+                      <td>{employee.position_name || '-'}</td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">Shortcut Navigasi</h2>
-          <div className="space-y-2">
+        <section className="dashboard-section dashboard-shortcuts">
+          <div className="dashboard-section-heading">
+            <div>
+              <div className="dashboard-eyebrow">QUICK ACCESS</div>
+              <h2>Akses cepat</h2>
+            </div>
+          </div>
+          <div className="shortcut-list">
             {shortcuts.map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}
-                className="group flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                className="shortcut-link"
               >
                 <span>{item.label}</span>
-                <ArrowRight size={16} className="text-slate-400 group-hover:text-blue-600" />
+                <ArrowRight size={15} />
               </NavLink>
             ))}
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );

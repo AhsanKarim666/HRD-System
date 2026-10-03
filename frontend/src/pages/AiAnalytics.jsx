@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { CalendarDays } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import axiosClient from '../api/axiosClient';
 
 const months = [
@@ -104,13 +106,14 @@ const AiAnalytics = () => {
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-600">Performance</p>
-            <h1 className="mt-2 text-2xl font-bold text-slate-900 md:text-3xl">Employee Review</h1>
+            <p className="dashboard-eyebrow">PEOPLE OPERATIONS</p>
+            <h1 className="mt-2 text-2xl font-bold text-slate-900 md:text-3xl">Ulasan Kinerja</h1>
+            <p className="ai-page-description">Analisis karyawan berdasarkan data operasional pada periode terpilih.</p>
           </div>
 
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100" />
-            Updated today
+          <div className="ai-period-badge">
+            <CalendarDays size={15} aria-hidden="true" />
+            <span>{months[Number(month) - 1]} {year}</span>
           </div>
         </div>
 
@@ -169,20 +172,20 @@ const AiAnalytics = () => {
               disabled={loading}
               className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              {loading ? 'Menganalisa...' : 'Generate Review'}
+              {loading ? 'Sedang menganalisis...' : 'Buat analisis'}
             </button>
           </form>
         </div>
 
         {errorMsg && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <div className="ai-error-state" role="alert">
             {errorMsg}
           </div>
         )}
 
         {!resultData && !loading && (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-100/80 px-6 py-12 text-center">
-            <p className="text-sm text-slate-500">Pilih karyawan dan bulan untuk melihat review performa.</p>
+              <p className="text-sm text-slate-500">Pilih karyawan dan periode untuk membuat analisis kinerja.</p>
           </div>
         )}
 
@@ -228,10 +231,17 @@ const AiAnalytics = () => {
               ))}
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">Analisis Gemini</p>
-              <div className="mt-3 whitespace-pre-line rounded-xl bg-slate-50 p-4 text-sm leading-7 text-slate-700">
-                {resultData.ai_evaluation}
+            <section className="ai-report-section">
+              <header className="ai-report-heading">
+                <div>
+                  <p className="dashboard-eyebrow">RINGKASAN PERIODE</p>
+                  <h2>Analisis Karyawan</h2>
+                  <p>Temuan dan rekomendasi berdasarkan data yang tersedia.</p>
+                </div>
+                <span className="ai-report-period">{months[Number(month) - 1]} {year}</span>
+              </header>
+              <div className="ai-report">
+                <ReactMarkdown>{resultData.ai_evaluation}</ReactMarkdown>
               </div>
             </section>
 
