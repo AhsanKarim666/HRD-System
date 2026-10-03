@@ -155,6 +155,12 @@ async function initDatabase() {
     `);
 
     await db.query(`
+      ALTER TABLE attendances
+        ADD COLUMN IF NOT EXISTS clock_in TIME,
+        ADD COLUMN IF NOT EXISTS clock_out TIME;
+    `);
+
+    await db.query(`
       CREATE TABLE IF NOT EXISTS leaves (
         id SERIAL PRIMARY KEY,
         employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
