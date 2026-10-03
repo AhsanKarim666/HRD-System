@@ -13,7 +13,9 @@ const summarizeEmployeePerformance = async (req, res) => {
 
   try {
     const employeeRes = await db.query(
-      `SELECT e.id, e.nik, e.full_name, d.name AS department_name, p.name AS position_name
+            `SELECT e.id, e.nik, e.full_name, e.phone, e.hire_date, e.status,
+              d.name AS department_name, p.name AS position_name,
+              COALESCE(p.base_salary, 0) AS base_salary
        FROM employees e
        LEFT JOIN departments d ON e.department_id = d.id
        LEFT JOIN positions p ON e.position_id = p.id
@@ -26,53 +28,62 @@ const summarizeEmployeePerformance = async (req, res) => {
     }
 
     const employee = employeeRes.rows[0];
+    const periodStart = `${year}-${String(month).padStart(2, '0')}-01`;
+    const periodEnd = new Date(Date.UTC(Number(year), Number(month), 1)).toISOString().slice(0, 10);
 
     const attendanceRes = await db.query(
-      `SELECT
-         COUNT(*) FILTER (WHERE status = 'Present') AS total_present,
-         COUNT(*) FILTER (WHERE status = 'Late') AS total_late,
-         COUNT(*) FILTER (WHERE status = 'Absent') AS total_absent
+      `SELECT id, date, clock_in, clock_out, status
        FROM attendances
        WHERE employee_id = $1
-         AND EXTRACT(MONTH FROM date) = $2
-         AND EXTRACT(YEAR FROM date) = $3`,
-      [employee_id, month, year]
+         AND date >= $2::date
+         AND date < $3::date
+       ORDER BY date ASC`,
+      [employee_id, periodStart, periodEnd]
     );
 
     const leaveRes = await db.query(
-      `SELECT COUNT(*) AS total_leaves
+      `SELECT id, leave_type, start_date, end_date, reason, status, created_at
        FROM leaves
        WHERE employee_id = $1
-         AND status = 'Approved'
-         AND EXTRACT(MONTH FROM start_date) = $2
-         AND EXTRACT(YEAR FROM start_date) = $3`,
-      [employee_id, month, year]
+         AND start_date < $3::date
+         AND end_date >= $2::date
+       ORDER BY start_date ASC`,
+      [employee_id, periodStart, periodEnd]
+    );
+
+    const payrollRes = await db.query(
+      `SELECT id, period, basic_salary, allowances, deductions, net_salary, payment_status, created_at
+       FROM payroll
+       WHERE employee_id = $1 AND period = $2
+       ORDER BY created_at DESC, id DESC`,
+      [employee_id, periodStart]
     );
 
     const stats = {
-      present: Number(attendanceRes.rows[0]?.total_present || 0),
-      late: Number(attendanceRes.rows[0]?.total_late || 0),
-      absent: Number(attendanceRes.rows[0]?.total_absent || 0),
-      leaves: Number(leaveRes.rows[0]?.total_leaves || 0),
+      present: attendanceRes.rows.filter((record) => record.status === 'Present').length,
+      late: attendanceRes.rows.filter((record) => record.status === 'Late').length,
+      absent: attendanceRes.rows.filter((record) => record.status === 'Absent').length,
+      leaves: leaveRes.rows.filter((record) => record.status === 'Approved').length,
+    };
+
+    const analysisData = {
+      employee,
+      period: { month: Number(month), year: Number(year) },
+      attendance: { summary: stats, records: attendanceRes.rows },
+      leaves: leaveRes.rows,
+      payroll: payrollRes.rows,
     };
 
     const promptText = `
-Anda adalah seorang Senior HR Specialist. Buatkan ringkasan analisis kinerja profesional untuk karyawan berikut:
+Anda adalah Senior HR Specialist. Analisis seluruh data karyawan, absensi, cuti, dan payroll dalam JSON berikut. Gunakan hanya fakta yang tersedia; nyatakan jika suatu data kosong dan jangan mengarang.
 
-Nama: ${employee.full_name} (NIK: ${employee.nik})
-Divisi: ${employee.department_name || '-'}
-Jabatan: ${employee.position_name || '-'}
-Periode: Bulan ${month} Tahun ${year}
+${JSON.stringify(analysisData, null, 2)}
 
-Metrik Kehadiran:
-- Hadir Tepat Waktu: ${stats.present} hari
-- Terlambat: ${stats.late} kali
-- Tidak Hadir (Alfa): ${stats.absent} hari
-- Cuti Disetujui: ${stats.leaves} hari
-
-Format respons dalam bahasa Indonesia yang ringkas dan profesional:
-1. Ringkasan Kinerja & Kedisiplinan (1 paragraf)
-2. Catatan Evaluasi & Rekomendasi HR (2-3 poin ringkas)
+Berikan respons dalam bahasa Indonesia dengan format:
+1. Ringkasan profil dan kinerja pada periode ini.
+2. Analisis absensi serta cuti, termasuk pola yang terlihat.
+3. Ringkasan payroll (gaji pokok, tunjangan, potongan, gaji bersih, status pembayaran) atau nyatakan belum tersedia.
+4. Catatan evaluasi dan rekomendasi HR yang spesifik berdasarkan data.
 `.trim();
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -112,12 +123,20 @@ Format respons dalam bahasa Indonesia yang ringkas dan profesional:
       data: {
         employee: {
           id: employee.id,
+          nik: employee.nik,
           name: employee.full_name,
+          phone: employee.phone,
+          hire_date: employee.hire_date,
+          status: employee.status,
           department: employee.department_name,
           position: employee.position_name,
+          base_salary: employee.base_salary,
         },
         period: { month, year },
         stats,
+        attendance: attendanceRes.rows,
+        leaves: leaveRes.rows,
+        payroll: payrollRes.rows,
         ai_evaluation: aiEvaluation,
       },
     });
