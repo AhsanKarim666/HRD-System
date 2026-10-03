@@ -176,6 +176,11 @@ async function initDatabase() {
     `);
 
     await db.query(`
+      ALTER TABLE leaves
+        ADD COLUMN IF NOT EXISTS leave_type VARCHAR(50) NOT NULL DEFAULT 'Annual';
+    `);
+
+    await db.query(`
       CREATE TABLE IF NOT EXISTS payroll (
         id SERIAL PRIMARY KEY,
         employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
