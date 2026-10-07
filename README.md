@@ -34,7 +34,7 @@ Proyek ini dibuat sebagai prototype aplikasi HRIS (Human Resource Information Sy
 ### Backend
 - Node.js
 - Express.js
-- PostgreSQL
+- PostgreSQL (Neon)
 - JWT untuk autentikasi
 - bcryptjs untuk hashing password
 
@@ -131,19 +131,19 @@ cd backend
 npm install
 ```
 
-Pastikan file `.env` sudah dibuat sesuai konfigurasi PostgreSQL, contoh:
+Pastikan file `.env` sudah dibuat sesuai konfigurasi PostgreSQL (Neon), contoh:
 
 ```env
-DB_USER=postgres
-DB_PASSWORD=your_password
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=hrd_system
-PORT=5000
+DATABASE_URL=postgresql://user:password@ep-xxxx.neon.tech/hrd_system?sslmode=require
 JWT_SECRET=replace-with-a-random-secret-of-at-least-32-bytes
 JWT_EXPIRES_IN=1d
 GEMINI_API_KEY=your_api_key
 ```
+
+Catatan konfigurasi:
+- `DATABASE_URL` adalah koneksi Neon (wajib di production/Vercel). Secara opsional, kamu tetap bisa memakai variabel `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, dan `DB_NAME` untuk koneksi PostgreSQL lokal saat `DATABASE_URL` tidak diisi.
+- `JWT_EXPIRES_IN` bersifat opsional dan default-nya `1d`.
+- `GEMINI_API_KEY` hanya diperlukan untuk fitur AI analytics (`/api/ai/*`). Tanpa key ini, fitur lain tetap berjalan.
 
 Buat secret JWT lokal dengan perintah berikut, lalu isi hasilnya pada `JWT_SECRET` di `.env`:
 
@@ -153,7 +153,18 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 Jangan commit file `.env` atau membagikan secret yang dihasilkan. Template variabel tersedia di `backend/.env.example`.
 
-Lalu jalankan:
+### 2.1 Inisialisasi database & seed
+
+Saat pertama kali memakai database baru (termasuk Neon), jalankan migrasi schema dan seed data demo satu kali:
+
+```bash
+npm run init-db
+npm run seed
+```
+
+Kedua perintah membaca `DATABASE_URL` dari `.env`.
+
+Lalu jalankan server:
 
 ```bash
 npm run dev
@@ -185,10 +196,47 @@ Backend biasanya berjalan di:
 http://localhost:5000
 ```
 
+## Deploy ke Vercel
+
+Proyek ini di-deploy sebagai **dua project Vercel terpisah**: satu untuk backend (API) dan satu untuk frontend (static).
+
+### 1. Backend (API)
+
+Root folder: `backend/`
+
+- Entry serverless: `backend/api/index.js` (mengekspor aplikasi Express yang sama).
+- `backend/vercel.json` mengarahkan seluruh request ke fungsi tersebut, dengan `maxDuration: 60` untuk endpoint AI.
+
+Environment variables yang perlu diset di Vercel:
+
+| Variabel | Keterangan |
+| --- | --- |
+| `DATABASE_URL` | Koneksi Neon (wajib) |
+| `JWT_SECRET` | Secret minimal 32 karakter (wajib) |
+| `JWT_EXPIRES_IN` | Opsional, default `1d` |
+| `GEMINI_API_KEY` | Opsional, untuk fitur AI analytics |
+
+Sebelum deploy, jalankan migrasi + seed satu kali ke Neon (lihat bagian 2.1).
+
+### 2. Frontend (static)
+
+Root folder: `frontend/`
+
+- Build command default: `npm run build` (output `dist`).
+- `frontend/vercel.json` menyediakan rewrite SPA ke `/index.html` (untuk React Router).
+
+Environment variables yang perlu diset di Vercel:
+
+| Variabel | Keterangan |
+| --- | --- |
+| `VITE_API_URL` | URL backend, misal `https://<backend-project>.vercel.app/api` |
+
+Nilai `VITE_API_URL` diset setelah project backend selesai di-deploy.
+
 ## Catatan Pengembangan
 
-- Database PostgreSQL harus aktif sebelum menjalankan backend
-- Saat pertama kali dijalankan, backend akan melakukan inisialisasi tabel dan menambahkan data awal (seed)
+- Database PostgreSQL (Neon) harus aktif sebelum menjalankan backend
+- Saat pertama kali memakai database baru, jalankan `npm run init-db` dan `npm run seed` satu kali (lihat bagian 2.1)
 - Integrasi AI memerlukan API key Gemini yang valid untuk fungsi review kinerja
 - Project ini masih bersifat prototype / pengembangan awal dan dapat dikembangkan lebih lanjut untuk kebutuhan produksi
 
