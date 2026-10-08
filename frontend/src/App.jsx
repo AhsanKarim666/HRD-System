@@ -11,6 +11,8 @@ import AiAnalytics from './pages/AiAnalytics';
 import Departments from './pages/Departments';
 import Positions from './pages/Positions';
 import AuditLogs from './pages/AuditLogs';
+import Shifts from './pages/Shifts';
+import Overtimes from './pages/Overtimes';
 import { hasManagementAccess } from './api/session';
 
 const getSession = () => {
@@ -53,9 +55,11 @@ function App() {
           <Route path="employees" element={canManage ? <Employees /> : <Navigate to="/attendances" replace />} />
           <Route path="departments" element={canManage ? <Departments /> : <Navigate to="/attendances" replace />} />
           <Route path="positions" element={canManage ? <Positions /> : <Navigate to="/attendances" replace />} />
+          <Route path="shifts" element={canManage ? <Shifts /> : <Navigate to="/attendances" replace />} />
           <Route path="audit-logs" element={isHrd ? <AuditLogs /> : <Navigate to="/attendances" replace />} />
           <Route path="attendances" element={<Attendances />} />
           <Route path="leaves" element={<Leaves />} />
+          <Route path="overtimes" element={<Overtimes />} />
           <Route path="payrolls" element={<Payrolls />} />
           <Route path="ai-analytics" element={canManage ? <AiAnalytics /> : <Navigate to="/attendances" replace />} />
         </Route>

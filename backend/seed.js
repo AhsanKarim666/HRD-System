@@ -42,15 +42,17 @@ async function seed() {
 
     const deptRows = await db.query('SELECT id, name FROM departments');
     const positionRows = await db.query('SELECT id, name FROM positions');
+    const shiftResult = await db.query("SELECT id FROM shifts WHERE shift_name = 'Reguler' LIMIT 1");
     const deptMap = new Map(deptRows.rows.map((row) => [row.name, row.id]));
     const posMap = new Map(positionRows.rows.map((row) => [row.name, row.id]));
+    const regularShiftId = shiftResult.rows[0]?.id || null;
 
     for (const employee of employeeSeed) {
       const existing = await db.query('SELECT id FROM employees WHERE nik = $1 LIMIT 1', [employee.nik]);
       if (existing.rows.length === 0) {
         await db.query(
-          `INSERT INTO employees (nik, full_name, phone, hire_date, department_id, position_id, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          `INSERT INTO employees (nik, full_name, phone, hire_date, department_id, position_id, shift_id, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [
             employee.nik,
             employee.full_name,
@@ -58,13 +60,14 @@ async function seed() {
             employee.hire_date,
             deptMap.get(employee.department_name),
             posMap.get(employee.position_name),
+            regularShiftId,
             employee.status,
           ]
         );
       }
     }
 
-    const employeeRows = await db.query('SELECT id, nik FROM employees ORDER BY id');
+    const employeeRows = await db.query('SELECT id, nik, shift_id FROM employees ORDER BY id');
     const hrdHash = await bcrypt.hash('admin123', 10);
     const managerHash = await bcrypt.hash('manager123', 10);
 
@@ -99,9 +102,9 @@ async function seed() {
 
       if (attendanceExists.rows.length === 0) {
         await db.query(
-          `INSERT INTO attendances (employee_id, date, clock_in, clock_out, status)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [employeeRows.rows[i].id, today, workflow.clock_in, workflow.clock_out, workflow.status]
+          `INSERT INTO attendances (employee_id, shift_id, date, clock_in, clock_out, status)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [employeeRows.rows[i].id, employeeRows.rows[i].shift_id, today, workflow.clock_in, workflow.clock_out, workflow.status]
         );
       }
     }

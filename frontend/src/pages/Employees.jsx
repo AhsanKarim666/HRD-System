@@ -5,6 +5,7 @@ const Employees = () => {
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [positions, setPositions] = useState([]);
+  const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -16,6 +17,7 @@ const Employees = () => {
     hire_date: '',
     department_id: '',
     position_id: '',
+    shift_id: '',
     status: 'Active',
   });
 
@@ -23,14 +25,16 @@ const Employees = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [empRes, deptRes, posRes] = await Promise.all([
+      const [empRes, deptRes, posRes, shiftRes] = await Promise.all([
         axiosClient.get('/employees'),
         axiosClient.get('/departments'),
         axiosClient.get('/positions'),
+        axiosClient.get('/shifts'),
       ]);
       setEmployees(empRes.data.data);
       setDepartments(deptRes.data.data);
       setPositions(posRes.data.data);
+      setShifts(shiftRes.data.data);
       setErrorMsg('');
     } catch (err) {
       setErrorMsg(err.response?.data?.message || 'Gagal memuat data');
@@ -59,6 +63,7 @@ const Employees = () => {
         hire_date: '',
         department_id: '',
         position_id: '',
+        shift_id: '',
         status: 'Active',
       });
       fetchData();
@@ -73,6 +78,15 @@ const Employees = () => {
       fetchData();
     } catch (err) {
       alert(err.response?.data?.message || 'Gagal mengubah status karyawan');
+    }
+  };
+
+  const handleShiftChange = async (id, nextShiftId) => {
+    try {
+      await axiosClient.put(`/employees/${id}`, { shift_id: nextShiftId || null });
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal mengubah shift karyawan');
     }
   };
 
@@ -162,6 +176,23 @@ const Employees = () => {
             </select>
           </div>
 
+          <div>
+            <label>Shift Kerja: </label>
+            <select
+              name="shift_id"
+              value={formData.shift_id}
+              onChange={handleChange}
+              style={{ width: '100%', padding: '6px' }}
+            >
+              <option value="">-- Tanpa Shift --</option>
+              {shifts.map((shift) => (
+                <option key={shift.id} value={shift.id}>
+                  {shift.shift_name} ({String(shift.start_time).slice(0, 5)}-{String(shift.end_time).slice(0, 5)})
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div style={{ gridColumn: 'span 2', marginTop: '10px' }}>
             <button type="submit" style={{ padding: '8px 16px', cursor: 'pointer' }}>
               Simpan Karyawan
@@ -183,6 +214,7 @@ const Employees = () => {
                 <th>Nama</th>
                 <th>Departemen</th>
                 <th>Jabatan</th>
+                <th>Shift</th>
                 <th>No. Telp</th>
                 <th>Status</th>
                 <th>Aksi</th>
@@ -191,7 +223,7 @@ const Employees = () => {
             <tbody>
               {employees.length === 0 ? (
                 <tr>
-                  <td colSpan="7" align="center">Belum ada data karyawan.</td>
+                  <td colSpan="8" align="center">Belum ada data karyawan.</td>
                 </tr>
               ) : (
                 employees.map((emp) => (
@@ -200,6 +232,19 @@ const Employees = () => {
                     <td>{emp.full_name}</td>
                     <td>{emp.department_name || '-'}</td>
                     <td>{emp.position_name || '-'}</td>
+                    <td>
+                      <select
+                        value={emp.shift_id || ''}
+                        onChange={(e) => handleShiftChange(emp.id, e.target.value)}
+                        aria-label={`Shift ${emp.full_name}`}
+                        style={{ padding: '4px 6px' }}
+                      >
+                        <option value="">Tanpa Shift</option>
+                        {shifts.map((shift) => (
+                          <option key={shift.id} value={shift.id}>{shift.shift_name}</option>
+                        ))}
+                      </select>
+                    </td>
                     <td>{emp.phone || '-'}</td>
                     <td>{emp.status}</td>
                     <td>

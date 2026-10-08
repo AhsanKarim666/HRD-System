@@ -128,7 +128,7 @@ const Attendances = () => {
           <div>
             <label>Catatan: </label>
             <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', color: '#475569' }}>
-              Status otomatis ditentukan oleh backend: Present sampai jam 08:30, Late di atas 08:30.
+              Status mengikuti jam mulai shift karyawan (default Reguler 08:30); check-in setelah jam mulai berstatus Late.
             </div>
           </div>
 
@@ -164,6 +164,7 @@ const Attendances = () => {
                 <th>NIK</th>
                 <th>Nama Karyawan</th>
                 <th>Departemen</th>
+                <th>Shift</th>
                 <th>Tanggal</th>
                 <th>Jam Masuk</th>
                 <th>Jam Keluar</th>
@@ -174,7 +175,7 @@ const Attendances = () => {
             <tbody>
               {attendances.length === 0 ? (
                 <tr>
-                  <td colSpan="8" align="center">Tidak ada log absensi pada tanggal ini.</td>
+                  <td colSpan="9" align="center">Tidak ada log absensi pada tanggal ini.</td>
                 </tr>
               ) : (
                 attendances.map((att) => (
@@ -182,6 +183,7 @@ const Attendances = () => {
                     <td>{att.nik}</td>
                     <td>{att.full_name}</td>
                     <td>{att.department_name || '-'}</td>
+                    <td>{att.shift_name ? `${att.shift_name} (${String(att.shift_start_time).slice(0, 5)}-${String(att.shift_end_time).slice(0, 5)})` : '-'}</td>
                     <td>{att.date ? att.date.split('T')[0] : '-'}</td>
                     <td>{att.clock_in || '-'}</td>
                     <td>{att.clock_out || '-'}</td>
