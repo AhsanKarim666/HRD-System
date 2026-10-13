@@ -8,7 +8,7 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "init-db": "node initDatabase.js",
-    "seed": "node seed.js"
+    "seed": "node src/seeders/seed.js"
   },
   "keywords": [],
   "author": "",

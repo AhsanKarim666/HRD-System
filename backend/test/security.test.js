@@ -56,6 +56,9 @@ test('admin endpoints reject requests without a token', async () => {
       ['GET', '/api/payroll', 401],
       ['GET', '/api/dashboard/stats', 401],
       ['GET', '/api/audit-logs', 401],
+      ['GET', '/api/activity-logs', 401],
+      ['GET', '/api/attendances/export.csv?month=10&year=2026', 401],
+      ['GET', '/api/payroll/export.csv?month=10&year=2026', 401],
       ['POST', '/api/auth/register', 401],
       ['POST', '/api/employees/seed-master-data', 404],
     ];
@@ -90,6 +93,9 @@ test('Employee tokens cannot use management endpoints', async () => {
       ['POST', '/api/positions'],
       ['GET', '/api/dashboard/stats'],
       ['GET', '/api/audit-logs'],
+      ['GET', '/api/activity-logs'],
+      ['GET', '/api/attendances/export.csv?month=10&year=2026'],
+      ['GET', '/api/payroll/export.csv?month=10&year=2026'],
     ];
 
     for (const [method, path] of checks) {
@@ -102,6 +108,31 @@ test('Employee tokens cannot use management endpoints', async () => {
         body: method === 'POST' ? '{}' : undefined,
       });
       assert.equal(response.status, 403, `${method} ${path}`);
+    }
+  } finally {
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test('Activity log and monthly exports are restricted to HRD', async () => {
+  const server = app.listen(0);
+  await new Promise((resolve) => server.once('listening', resolve));
+  const token = jwt.sign(
+    { id: 10, role: 'Manager', employee_id: 42 },
+    process.env.JWT_SECRET
+  );
+
+  try {
+    const baseUrl = `http://127.0.0.1:${server.address().port}`;
+    for (const path of [
+      '/api/activity-logs',
+      '/api/attendances/export.csv?month=10&year=2026',
+      '/api/payroll/export.csv?month=10&year=2026',
+    ]) {
+      const response = await fetch(`${baseUrl}${path}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      assert.equal(response.status, 403, `GET ${path}`);
     }
   } finally {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));

@@ -56,6 +56,7 @@ function App() {
           <Route path="departments" element={canManage ? <Departments /> : <Navigate to="/attendances" replace />} />
           <Route path="positions" element={canManage ? <Positions /> : <Navigate to="/attendances" replace />} />
           <Route path="shifts" element={canManage ? <Shifts /> : <Navigate to="/attendances" replace />} />
+          <Route path="activity-logs" element={isHrd ? <AuditLogs /> : <Navigate to="/attendances" replace />} />
           <Route path="audit-logs" element={isHrd ? <AuditLogs /> : <Navigate to="/attendances" replace />} />
           <Route path="attendances" element={<Attendances />} />
           <Route path="leaves" element={<Leaves />} />

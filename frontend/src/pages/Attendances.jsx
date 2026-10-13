@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axiosClient from '../api/axiosClient';
 import { getCurrentUser } from '../api/session';
+import { downloadFile } from '../utils/downloadFile';
 
 const Attendances = () => {
   const currentUser = getCurrentUser();
@@ -10,6 +11,10 @@ const Attendances = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
   const [clockingOutId, setClockingOutId] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportMonth, setExportMonth] = useState(new Date().getMonth() + 1);
+  const [exportYear, setExportYear] = useState(new Date().getFullYear());
+  const canExport = currentUser?.role === 'HRD';
 
   // Form check-in state
   const [formData, setFormData] = useState({
@@ -68,6 +73,22 @@ const Attendances = () => {
       alert(err.response?.data?.message || 'Gagal mencatat jam pulang');
     } finally {
       setClockingOutId(null);
+    }
+  };
+
+  const exportAttendanceCsv = async () => {
+    setExporting(true);
+    try {
+      const response = await axiosClient.get('/attendances/export.csv', {
+        params: { month: exportMonth, year: exportYear },
+        responseType: 'blob',
+      });
+      const month = String(exportMonth).padStart(2, '0');
+      downloadFile(response.data, `rekap-presensi-${exportYear}-${month}.csv`);
+    } catch (error) {
+      alert(error.response?.data?.message || 'Gagal mengunduh rekap presensi.');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -154,6 +175,33 @@ const Attendances = () => {
             />
           </div>
         </div>
+        {canExport && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+            <label htmlFor="attendance-export-month">Periode rekap:</label>
+            <select
+              id="attendance-export-month"
+              value={exportMonth}
+              onChange={(event) => setExportMonth(Number(event.target.value))}
+            >
+              {[
+                'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+              ].map((month, index) => <option key={month} value={index + 1}>{month}</option>)}
+            </select>
+            <input
+              aria-label="Tahun rekap presensi"
+              type="number"
+              min="2000"
+              max="2100"
+              value={exportYear}
+              onChange={(event) => setExportYear(event.target.value)}
+              style={{ width: '90px' }}
+            />
+            <button type="button" disabled={exporting} onClick={exportAttendanceCsv}>
+              {exporting ? 'Menyiapkan...' : 'Export Rekap Presensi CSV'}
+            </button>
+          </div>
+        )}
 
         {loading ? (
           <p>Memuat log absensi...</p>

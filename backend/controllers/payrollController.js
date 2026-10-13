@@ -1,6 +1,7 @@
 const db = require('../db');
 const { recordAudit } = require('../utils/auditLogger');
 const { calculateMonthlyPph21 } = require('../utils/tax');
+const { parseReportPeriod, sendCsv } = require('../utils/csv');
 
 const getPayrolls = async (req, res) => {
   const { month, year, employee_id } = req.query;
@@ -59,6 +60,52 @@ const getPayrolls = async (req, res) => {
     res.status(200).json({ success: true, data: result.rows });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const exportPayrolls = async (req, res) => {
+  const period = parseReportPeriod(req.query.month, req.query.year);
+  if (!period) {
+    return res.status(400).json({
+      success: false,
+      message: 'Bulan (1-12) dan tahun (2000-2100) wajib diisi dengan benar.',
+    });
+  }
+
+  try {
+    const result = await db.query(
+      `SELECT p.period, e.nik, e.full_name, d.name AS department_name,
+              pos.name AS position_name, p.basic_salary, p.allowances,
+              p.deductions, p.pph21, p.net_salary, p.payment_status
+       FROM payroll p
+       JOIN employees e ON e.id = p.employee_id
+       LEFT JOIN departments d ON d.id = e.department_id
+       LEFT JOIN positions pos ON pos.id = e.position_id
+       WHERE CAST(p.period AS DATE) >= $1::date
+         AND CAST(p.period AS DATE) < ($1::date + INTERVAL '1 month')
+       ORDER BY e.full_name`,
+      [period.startDate]
+    );
+    return sendCsv(
+      res,
+      `rekap-penggajian-${period.year}-${String(period.month).padStart(2, '0')}.csv`,
+      [
+        { key: 'period', label: 'Periode' },
+        { key: 'nik', label: 'NIK' },
+        { key: 'full_name', label: 'Nama Karyawan' },
+        { key: 'department_name', label: 'Departemen' },
+        { key: 'position_name', label: 'Jabatan' },
+        { key: 'basic_salary', label: 'Gaji Pokok' },
+        { key: 'allowances', label: 'Tunjangan' },
+        { key: 'deductions', label: 'Potongan' },
+        { key: 'pph21', label: 'PPh 21' },
+        { key: 'net_salary', label: 'Gaji Bersih' },
+        { key: 'payment_status', label: 'Status Pembayaran' },
+      ],
+      result.rows
+    );
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -204,4 +251,4 @@ const updatePaymentStatus = async (req, res) => {
   }
 };
 
-module.exports = { getPayrolls, generatePayroll, updatePaymentStatus };
+module.exports = { getPayrolls, exportPayrolls, generatePayroll, updatePaymentStatus };

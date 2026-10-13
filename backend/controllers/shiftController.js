@@ -28,7 +28,11 @@ const createShift = async (req, res) => {
        VALUES ($1, $2, $3) RETURNING *`,
       [shift_name.trim(), start_time, end_time]
     );
-    await recordAudit(req, 'shift.create', 'shift', result.rows[0].id);
+    await recordAudit(req, 'shift.create', 'shift', result.rows[0].id, {
+      shift_name: result.rows[0].shift_name,
+      start_time: result.rows[0].start_time,
+      end_time: result.rows[0].end_time,
+    });
     res.status(201).json({ success: true, message: 'Shift berhasil dibuat.', data: result.rows[0] });
   } catch (error) {
     if (error.code === '23505') {
@@ -59,7 +63,11 @@ const updateShift = async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Data shift tidak ditemukan.' });
     }
-    await recordAudit(req, 'shift.update', 'shift', id);
+    await recordAudit(req, 'shift.update', 'shift', id, {
+      shift_name: result.rows[0].shift_name,
+      start_time: result.rows[0].start_time,
+      end_time: result.rows[0].end_time,
+    });
     res.status(200).json({ success: true, message: 'Shift berhasil diperbarui.', data: result.rows[0] });
   } catch (error) {
     if (error.code === '23505') {
@@ -71,11 +79,18 @@ const updateShift = async (req, res) => {
 
 const deleteShift = async (req, res) => {
   try {
-    const result = await db.query('DELETE FROM shifts WHERE id = $1 RETURNING id', [req.params.id]);
+    const result = await db.query(
+      'DELETE FROM shifts WHERE id = $1 RETURNING id, shift_name, start_time, end_time',
+      [req.params.id]
+    );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Data shift tidak ditemukan.' });
     }
-    await recordAudit(req, 'shift.delete', 'shift', req.params.id);
+    await recordAudit(req, 'shift.delete', 'shift', req.params.id, {
+      shift_name: result.rows[0].shift_name,
+      start_time: result.rows[0].start_time,
+      end_time: result.rows[0].end_time,
+    });
     res.status(200).json({ success: true, message: 'Shift berhasil dihapus.' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

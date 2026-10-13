@@ -30,7 +30,7 @@ const Sidebar = ({ open, onClose }) => {
     { name: 'Lembur', path: '/overtimes', icon: Timer },
     { name: 'Payroll', path: '/payrolls', icon: Wallet },
     { name: 'AI Analytics', path: '/ai-analytics', icon: Sparkles, adminOnly: true },
-    { name: 'Riwayat Aktivitas', path: '/audit-logs', icon: ClipboardList, hrdOnly: true },
+    { name: 'Activity Log', path: '/activity-logs', icon: ClipboardList, hrdOnly: true },
   ];
   const visibleItems = navItems.filter((item) =>
     (!item.adminOnly || canManage) && (!item.hrdOnly || currentUser?.role === 'HRD')

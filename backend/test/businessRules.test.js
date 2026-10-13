@@ -210,7 +210,7 @@ test('leave approval stores reviewer and review time, and rejects duplicate deci
       updateValues = values;
       return { rows: [{ id: 5, status: 'Approved', approver_id: values[1] }] };
     }
-    if (query.includes('INSERT INTO audit_logs')) return { rows: [] };
+    if (query.includes('INSERT INTO audit_logs') || query.includes('INSERT INTO activity_logs')) return { rows: [] };
     throw new Error('Unexpected leave query');
   };
 

@@ -9,6 +9,19 @@ const recordAudit = async (req, action, entityType, entityId, details = {}) => {
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [req.user.id, req.user.role, action, entityType, entityId == null ? null : String(entityId), details]
     );
+    await db.query(
+      `INSERT INTO activity_logs (user_id, action, details)
+       VALUES ($1, $2, $3)`,
+      [
+        req.user.id,
+        action,
+        JSON.stringify({
+          entity_type: entityType,
+          entity_id: entityId == null ? null : String(entityId),
+          ...details,
+        }),
+      ]
+    );
   } catch (error) {
     console.error('Gagal menulis audit log:', error.message);
   }

@@ -1,5 +1,6 @@
 const db = require('../db');
 const { recordAudit } = require('../utils/auditLogger');
+const { parseReportPeriod, sendCsv } = require('../utils/csv');
 
 const normalizeDate = (value) => value || new Date().toISOString().slice(0, 10);
 
@@ -82,6 +83,48 @@ const getTodayAttendance = async (req, res) => {
     res.status(200).json({ success: true, data: result.rows });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const exportAttendances = async (req, res) => {
+  const period = parseReportPeriod(req.query.month, req.query.year);
+  if (!period) {
+    return res.status(400).json({
+      success: false,
+      message: 'Bulan (1-12) dan tahun (2000-2100) wajib diisi dengan benar.',
+    });
+  }
+
+  try {
+    const result = await db.query(
+      `SELECT a.date, e.nik, e.full_name, d.name AS department_name,
+              s.shift_name, a.clock_in, a.clock_out, a.status
+       FROM attendances a
+       JOIN employees e ON e.id = a.employee_id
+       LEFT JOIN departments d ON d.id = e.department_id
+       LEFT JOIN shifts s ON s.id = a.shift_id
+       WHERE a.date >= $1::date
+         AND a.date < ($1::date + INTERVAL '1 month')
+       ORDER BY a.date, e.full_name`,
+      [period.startDate]
+    );
+    return sendCsv(
+      res,
+      `rekap-presensi-${period.year}-${String(period.month).padStart(2, '0')}.csv`,
+      [
+        { key: 'date', label: 'Tanggal' },
+        { key: 'nik', label: 'NIK' },
+        { key: 'full_name', label: 'Nama Karyawan' },
+        { key: 'department_name', label: 'Departemen' },
+        { key: 'shift_name', label: 'Shift' },
+        { key: 'clock_in', label: 'Jam Masuk' },
+        { key: 'clock_out', label: 'Jam Keluar' },
+        { key: 'status', label: 'Status' },
+      ],
+      result.rows
+    );
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -197,4 +240,4 @@ const checkOut = async (req, res) => {
   }
 };
 
-module.exports = { getAttendances, getTodayAttendance, checkIn, checkOut };
+module.exports = { getAttendances, getTodayAttendance, exportAttendances, checkIn, checkOut };

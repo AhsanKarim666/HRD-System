@@ -3,10 +3,12 @@ const router = express.Router();
 const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
 const {
   getPayrolls,
+  exportPayrolls,
   generatePayroll,
   updatePaymentStatus,
 } = require('../controllers/payrollController');
 
+router.get('/export.csv', verifyToken, requireRole('HRD'), exportPayrolls);
 router.get('/', verifyToken, requireRole('HRD', 'Manager', 'Employee'), getPayrolls);
 router.post('/', verifyToken, requireRole('HRD', 'Manager'), generatePayroll);
 router.post('/generate', verifyToken, requireRole('HRD', 'Manager'), generatePayroll);

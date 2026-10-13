@@ -4,10 +4,12 @@ const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
 const {
   getAttendances,
   getTodayAttendance,
+  exportAttendances,
   checkIn,
   checkOut,
 } = require('../controllers/attendanceController');
 
+router.get('/export.csv', verifyToken, requireRole('HRD'), exportAttendances);
 router.get('/', verifyToken, requireRole('HRD', 'Manager', 'Employee'), getAttendances);
 router.get('/today', verifyToken, requireRole('HRD', 'Manager', 'Employee'), getTodayAttendance);
 router.post('/check-in', verifyToken, requireRole('HRD', 'Manager', 'Employee'), checkIn);

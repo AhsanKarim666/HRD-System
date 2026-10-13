@@ -249,6 +249,16 @@ async function initDatabase() {
     `);
 
     await db.query(`
+      CREATE TABLE IF NOT EXISTS activity_logs (
+        id BIGSERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        action TEXT NOT NULL,
+        details TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await db.query(`
       CREATE INDEX IF NOT EXISTS idx_employees_department_id ON employees(department_id);
       CREATE INDEX IF NOT EXISTS idx_employees_position_id ON employees(position_id);
       CREATE INDEX IF NOT EXISTS idx_employees_shift_id ON employees(shift_id);
@@ -258,6 +268,7 @@ async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_leaves_status ON leaves(status);
       CREATE INDEX IF NOT EXISTS idx_payroll_employee_period ON payroll(employee_id, period);
       CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC, id DESC);
+      CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created_at DESC, id DESC);
     `);
 
     console.log('Database schema initialized successfully.');

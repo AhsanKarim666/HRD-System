@@ -14,7 +14,8 @@ Proyek ini dibuat sebagai prototype aplikasi HRIS (Human Resource Information Sy
 - Pengajuan, approval, dan rekap jam lembur harian
 - Payroll / gaji karyawan
 - Estimasi PPh 21 pada slip payroll
-- Riwayat audit untuk perubahan operasional
+- Unduh slip gaji PDF dan ekspor rekap presensi/penggajian bulanan CSV untuk HRD
+- Activity log untuk approval cuti/lembur, perubahan shift, dan generate payroll
 - Dashboard ringkasan operasional
 - Review performa karyawan berbasis AI
 
@@ -52,6 +53,9 @@ hrd-system/
 │   ├── controllers/
 │   ├── middlewares/
 │   ├── routes/
+│   ├── src/
+│   │   └── seeders/
+│   │       └── seed.js
 │   ├── db.js
 │   ├── index.js
 │   ├── initDatabase.js
@@ -167,6 +171,8 @@ Lalu jalankan:
 ```bash
 npm run dev
 ```
+
+Seeder dapat dijalankan secara terpisah dengan `npm run seed`. Seeder mengisi 12 karyawan dummy, relasi departemen/jabatan/shift, presensi hari kerja 30 hari terakhir, dan payroll bulan berjalan; data demo dapat ditambahkan ke database yang sudah berisi pengguna. Saat dijalankan otomatis oleh server, seed hanya berjalan pada database tanpa pengguna.
 
 Test backend dapat dijalankan dengan:
 

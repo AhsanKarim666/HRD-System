@@ -14,8 +14,14 @@ const actionLabels = {
   'leave.request': 'Ajukan cuti',
   'leave.approved': 'Setujui cuti',
   'leave.rejected': 'Tolak cuti',
+  'overtime.request': 'Ajukan lembur',
+  'overtime.approved': 'Setujui lembur',
+  'overtime.rejected': 'Tolak lembur',
   'payroll.generate': 'Buat payroll',
   'payroll.payment_status': 'Ubah status pembayaran',
+  'shift.create': 'Tambah shift',
+  'shift.update': 'Ubah shift',
+  'shift.delete': 'Hapus shift',
   'department.create': 'Tambah departemen',
   'department.update': 'Ubah departemen',
   'department.delete': 'Hapus departemen',
@@ -29,6 +35,8 @@ const entityLabels = {
   attendance: 'Absensi',
   leave: 'Cuti',
   payroll: 'Payroll',
+  overtime: 'Lembur',
+  shift: 'Shift',
   department: 'Departemen',
   position: 'Jabatan',
 };
@@ -44,6 +52,11 @@ const detailLabels = {
   end_date: 'Selesai',
   period: 'Periode',
   changed_fields: 'Kolom diubah',
+  shift_name: 'Nama shift',
+  start_time: 'Jam mulai',
+  end_time: 'Jam selesai',
+  entity_type: 'Jenis data',
+  entity_id: 'ID data',
 };
 const valueLabels = {
   Active: 'Aktif',
@@ -79,12 +92,19 @@ const AuditLogs = () => {
       setLoading(true);
       try {
         const [response, employeesResponse, departmentsResponse, positionsResponse] = await Promise.all([
-          axiosClient.get(`/audit-logs?limit=${PAGE_SIZE}&offset=${offset}`),
+          axiosClient.get(`/activity-logs?limit=${PAGE_SIZE}&offset=${offset}`),
           axiosClient.get('/employees').catch(() => null),
           axiosClient.get('/departments').catch(() => null),
           axiosClient.get('/positions').catch(() => null),
         ]);
-        const rows = response.data.data || [];
+        const rows = (response.data.data || []).map((row) => {
+          if (typeof row.details !== 'string') return row;
+          try {
+            return { ...row, details: JSON.parse(row.details) };
+          } catch {
+            return { ...row, details: { detail: row.details } };
+          }
+        });
         const total = Number(response.data.pagination?.total || 0);
         setLogs(rows);
         setTotalRecords(total);
@@ -135,7 +155,7 @@ const AuditLogs = () => {
     <div className="audit-page">
       <div className="page-heading audit-heading">
         <div className="dashboard-eyebrow">SECURITY & COMPLIANCE</div>
-        <h1>Riwayat Aktivitas</h1>
+        <h1>Activity Log</h1>
         <p>Perubahan operasional yang dilakukan pengguna.</p>
       </div>
       {errorMsg && <p role="alert" style={{ color: '#b91c1c' }}>{errorMsg}</p>}
@@ -163,9 +183,12 @@ const AuditLogs = () => {
               ) : logs.map((log) => (
                 <tr key={log.id}>
                   <td>{formatDateTime(log.created_at)}</td>
-                  <td>{log.actor_role} (ID {log.actor_id || '-'})</td>
+                  <td>{log.actor_name || 'Pengguna tidak tersedia'} ({log.actor_role || 'Role tidak tersedia'}, ID {log.user_id || '-'})</td>
                   <td><span className="audit-action">{actionLabels[log.action] || log.action}</span></td>
-                  <td>{entityLabels[log.entity_type] || log.entity_type} #{log.entity_id || '-'}</td>
+                  <td>
+                    {entityLabels[log.details?.entity_type] || log.details?.entity_type || 'Aktivitas'}
+                    {' #'}{log.details?.entity_id || '-'}
+                  </td>
                   <td>
                     <div className="audit-details">
                       {Object.entries(log.details || {}).length === 0 ? 'Tidak ada detail tambahan.' : (

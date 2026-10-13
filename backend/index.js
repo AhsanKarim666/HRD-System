@@ -17,6 +17,7 @@ const payrollRoutes = require('./routes/payrollRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const auditRoutes = require('./routes/auditRoutes');
+const activityRoutes = require('./routes/activityRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -42,6 +43,7 @@ app.use('/api/payrolls', payrollRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/audit-logs', auditRoutes);
+app.use('/api/activity-logs', activityRoutes);
 
 app.use((err, req, res, next) => {
   const status = err.status || 500;
