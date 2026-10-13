@@ -1,5 +1,6 @@
 const db = require('../db');
 const { recordAudit } = require('../utils/auditLogger');
+const { calculateMonthlyPph21 } = require('../utils/tax');
 
 const getPayrolls = async (req, res) => {
   const { month, year, employee_id } = req.query;
@@ -24,6 +25,7 @@ const getPayrolls = async (req, res) => {
       p.basic_salary,
       p.allowances,
       p.deductions,
+      p.pph21,
       p.net_salary,
       p.payment_status,
       p.created_at
@@ -130,24 +132,26 @@ const generatePayroll = async (req, res) => {
       : requestedBasicSalary;
     const totalAllowances = parsedAllowances.value;
     const totalDeductions = parsedDeductions.value;
-    if (totalDeductions > basicSalary + totalAllowances) {
+    const estimatedPph21 = calculateMonthlyPph21(basicSalary + totalAllowances);
+    if (totalDeductions + estimatedPph21 > basicSalary + totalAllowances) {
       return res.status(400).json({
         success: false,
-        message: 'Potongan tidak boleh melebihi gaji pokok dan tunjangan.',
+        message: 'Total potongan lain dan PPh 21 tidak boleh melebihi gaji pokok dan tunjangan.',
       });
     }
-    const netSalary = basicSalary + totalAllowances - totalDeductions;
+    const netSalary = basicSalary + totalAllowances - totalDeductions - estimatedPph21;
 
     const result = await db.query(
-    `INSERT INTO payroll (employee_id, period, basic_salary, allowances, deductions, net_salary, payment_status)
-     VALUES ($1, $2, $3, $4, $5, $6, 'Unpaid')
+    `INSERT INTO payroll (employee_id, period, basic_salary, allowances, deductions, pph21, net_salary, payment_status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'Unpaid')
      RETURNING *`,
-    [employee_id, periodValue, basicSalary, totalAllowances, totalDeductions, netSalary]
+    [employee_id, periodValue, basicSalary, totalAllowances, totalDeductions, estimatedPph21, netSalary]
     );
     await recordAudit(req, 'payroll.generate', 'payroll', result.rows[0].id, {
       employee_id,
       period: periodValue,
       payment_status: 'Unpaid',
+      pph21: estimatedPph21,
     });
 
     res.status(201).json({

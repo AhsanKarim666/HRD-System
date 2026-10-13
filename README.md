@@ -9,8 +9,11 @@ Proyek ini dibuat sebagai prototype aplikasi HRIS (Human Resource Information Sy
 - Manajemen karyawan
 - Manajemen departemen dan jabatan, termasuk gaji pokok default per jabatan
 - Presensi dan kehadiran
+- Pengelolaan shift kerja dan presensi berdasarkan jam mulai shift
 - Pengajuan dan approval cuti dengan pencegahan jadwal tumpang tindih
+- Pengajuan, approval, dan rekap jam lembur harian
 - Payroll / gaji karyawan
+- Estimasi PPh 21 pada slip payroll
 - Riwayat audit untuk perubahan operasional
 - Dashboard ringkasan operasional
 - Review performa karyawan berbasis AI
@@ -89,14 +92,20 @@ hrd-system/
 - Data approver untuk keperluan persetujuan
 
 ### 5. Payroll
-- Rekap gaji dasar, tunjangan, potongan, dan gaji bersih
+- Rekap gaji dasar, tunjangan, potongan lain, estimasi PPh 21, dan gaji bersih
 - Status pembayaran: Paid / Unpaid
 
-### 6. Dashboard HR
+### 6. Shift dan lembur
+- Shift Reguler (08:30-17:30) disiapkan otomatis; HRD/Manager dapat mengelola shift serta menetapkannya pada karyawan.
+- Status terlambat mengikuti jam mulai shift; jika karyawan belum memiliki shift, batas lama 08:30 tetap digunakan.
+- Pengajuan lembur memiliki status Pending, Approved, atau Rejected. Total jam harian menghitung pengajuan yang telah disetujui.
+- Estimasi PPh 21 memakai tarif progresif tahunan, PTKP TK/0 Rp54.000.000, dan asumsi biaya jabatan 5% (maksimal Rp500.000 per bulan). Nilai pajak tahunan diannualisasi menjadi estimasi bulanan; hasil bukan pengganti perhitungan payroll/pajak resmi.
+
+### 7. Dashboard HR
 - Ringkasan performa dan aktivitas utama
 - Daftar jumlah karyawan, kehadiran, cuti, dan payroll
 
-### 7. AI Analytics
+### 8. AI Analytics
 - Evaluasi performa karyawan berdasarkan bulan dan tahun
 - Menggabungkan data absensi dan cuti
 - Menyediakan ringkasan evaluasi dalam bahasa Indonesia

@@ -18,6 +18,15 @@ async function initDatabase() {
     `);
 
     await db.query(`
+      CREATE TABLE IF NOT EXISTS shifts (
+        id SERIAL PRIMARY KEY,
+        shift_name VARCHAR(100) NOT NULL UNIQUE,
+        start_time TIME NOT NULL,
+        end_time TIME NOT NULL
+      );
+    `);
+
+    await db.query(`
       CREATE TABLE IF NOT EXISTS employees (
         id SERIAL PRIMARY KEY,
         nik VARCHAR(50) NOT NULL UNIQUE,
@@ -26,10 +35,19 @@ async function initDatabase() {
         hire_date DATE NOT NULL,
         department_id INTEGER REFERENCES departments(id) ON DELETE SET NULL,
         position_id INTEGER REFERENCES positions(id) ON DELETE SET NULL,
+        shift_id INTEGER REFERENCES shifts(id) ON DELETE SET NULL,
         status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Probation', 'Inactive'))
       );
     `);
-
+    await db.query(`
+      ALTER TABLE employees
+        ADD COLUMN IF NOT EXISTS shift_id INTEGER REFERENCES shifts(id) ON DELETE SET NULL;
+    `);
+    await db.query(`
+      INSERT INTO shifts (shift_name, start_time, end_time)
+      VALUES ('Reguler', '08:30', '17:30')
+      ON CONFLICT (shift_name) DO NOTHING;
+    `);
     await db.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -146,6 +164,7 @@ async function initDatabase() {
       CREATE TABLE IF NOT EXISTS attendances (
         id SERIAL PRIMARY KEY,
         employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+        shift_id INTEGER REFERENCES shifts(id) ON DELETE SET NULL,
         date DATE NOT NULL,
         clock_in TIME,
         clock_out TIME,
@@ -156,8 +175,22 @@ async function initDatabase() {
 
     await db.query(`
       ALTER TABLE attendances
+        ADD COLUMN IF NOT EXISTS shift_id INTEGER REFERENCES shifts(id) ON DELETE SET NULL,
         ADD COLUMN IF NOT EXISTS clock_in TIME,
         ADD COLUMN IF NOT EXISTS clock_out TIME;
+    `);
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS overtimes (
+        id SERIAL PRIMARY KEY,
+        employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+        date DATE NOT NULL,
+        hours NUMERIC(5,2) NOT NULL CHECK (hours > 0 AND hours <= 24),
+        reason TEXT NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected')),
+        approver_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        reviewed_at TIMESTAMP,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     await db.query(`
@@ -190,11 +223,16 @@ async function initDatabase() {
         basic_salary NUMERIC(12,2) NOT NULL DEFAULT 0,
         allowances NUMERIC(12,2) NOT NULL DEFAULT 0,
         deductions NUMERIC(12,2) NOT NULL DEFAULT 0,
+        pph21 NUMERIC(12,2) NOT NULL DEFAULT 0,
         net_salary NUMERIC(12,2) NOT NULL DEFAULT 0,
         payment_status VARCHAR(20) NOT NULL DEFAULT 'Unpaid' CHECK (payment_status IN ('Paid', 'Unpaid')),
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         UNIQUE (employee_id, period)
       );
+    `);
+    await db.query(`
+      ALTER TABLE payroll
+        ADD COLUMN IF NOT EXISTS pph21 NUMERIC(12,2) NOT NULL DEFAULT 0;
     `);
 
     await db.query(`
@@ -213,7 +251,10 @@ async function initDatabase() {
     await db.query(`
       CREATE INDEX IF NOT EXISTS idx_employees_department_id ON employees(department_id);
       CREATE INDEX IF NOT EXISTS idx_employees_position_id ON employees(position_id);
+      CREATE INDEX IF NOT EXISTS idx_employees_shift_id ON employees(shift_id);
       CREATE INDEX IF NOT EXISTS idx_attendances_employee_date ON attendances(employee_id, date);
+      CREATE INDEX IF NOT EXISTS idx_overtimes_employee_date ON overtimes(employee_id, date);
+      CREATE INDEX IF NOT EXISTS idx_overtimes_status ON overtimes(status);
       CREATE INDEX IF NOT EXISTS idx_leaves_status ON leaves(status);
       CREATE INDEX IF NOT EXISTS idx_payroll_employee_period ON payroll(employee_id, period);
       CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC, id DESC);

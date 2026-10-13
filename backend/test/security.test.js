@@ -170,7 +170,7 @@ test('Employee check-in uses server date and time instead of request values', as
   };
   db.query = async (query, values) => {
     queries.push({ query, values });
-    return { rows: query.includes('SELECT * FROM attendances') ? [] : [{ id: 1 }] };
+    return { rows: query.includes('FROM employees e') ? [{ attendance_id: null }] : [{ id: 1 }] };
   };
 
   try {
@@ -180,7 +180,8 @@ test('Employee check-in uses server date and time instead of request values', as
     });
     assert.equal(response.statusCode, 201);
     assert.deepEqual(queries[0].values, [42, expectedDate]);
-    assert.deepEqual(queries[1].values.slice(0, 3), [42, expectedDate, expectedTime]);
+    const expectedStatus = expectedTime > '08:30:00' ? 'Late' : 'Present';
+    assert.deepEqual(queries[1].values, [42, null, expectedDate, expectedTime, expectedStatus]);
   } finally {
     db.query = originalQuery;
     global.Date = OriginalDate;

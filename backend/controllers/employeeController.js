@@ -15,10 +15,15 @@ const getEmployees = async (req, res) => {
         d.name AS department_name,
         e.position_id,
         p.name AS position_name,
-        p.base_salary
+        p.base_salary,
+        e.shift_id,
+        s.shift_name,
+        s.start_time AS shift_start_time,
+        s.end_time AS shift_end_time
       FROM employees e
       LEFT JOIN departments d ON e.department_id = d.id
       LEFT JOIN positions p ON e.position_id = p.id
+      LEFT JOIN shifts s ON e.shift_id = s.id
       ORDER BY e.id DESC
     `;
     const result = await db.query(query);
@@ -29,7 +34,7 @@ const getEmployees = async (req, res) => {
 };
 
 const createEmployee = async (req, res) => {
-  const { nik, full_name, phone, hire_date, department_id, position_id, status } = req.body;
+  const { nik, full_name, phone, hire_date, department_id, position_id, shift_id, status } = req.body;
 
   if (!nik || !full_name || !hire_date) {
     return res.status(400).json({
@@ -40,8 +45,8 @@ const createEmployee = async (req, res) => {
 
   try {
     const query = `
-      INSERT INTO employees (nik, full_name, phone, hire_date, department_id, position_id, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO employees (nik, full_name, phone, hire_date, department_id, position_id, shift_id, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `;
 
@@ -52,6 +57,7 @@ const createEmployee = async (req, res) => {
       hire_date,
       department_id || null,
       position_id || null,
+      shift_id || null,
       status || 'Active',
     ];
 
@@ -76,7 +82,7 @@ const createEmployee = async (req, res) => {
 
 const updateEmployee = async (req, res) => {
   const { id } = req.params;
-  const { full_name, phone, department_id, position_id, status } = req.body;
+  const { full_name, phone, department_id, position_id, shift_id, status } = req.body;
 
   try {
     const query = `
@@ -85,11 +91,16 @@ const updateEmployee = async (req, res) => {
           phone = COALESCE($2, phone),
           department_id = COALESCE($3, department_id),
           position_id = COALESCE($4, position_id),
-          status = COALESCE($5, status)
-      WHERE id = $6
+          shift_id = CASE WHEN $5 THEN $6::integer ELSE shift_id END,
+          status = COALESCE($7, status)
+      WHERE id = $8
       RETURNING *
     `;
-    const result = await db.query(query, [full_name, phone, department_id, position_id, status, id]);
+    const result = await db.query(query, [
+      full_name, phone, department_id, position_id,
+      Object.prototype.hasOwnProperty.call(req.body, 'shift_id'),
+      shift_id || null, status, id,
+    ]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Data karyawan tidak ditemukan' });
@@ -121,6 +132,8 @@ const deleteEmployee = async (req, res) => {
          SELECT employee_id FROM attendances WHERE employee_id = $1
          UNION ALL
          SELECT employee_id FROM leaves WHERE employee_id = $1
+         UNION ALL
+         SELECT employee_id FROM overtimes WHERE employee_id = $1
          UNION ALL
          SELECT employee_id FROM payroll WHERE employee_id = $1
        ) records`,

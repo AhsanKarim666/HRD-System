@@ -82,6 +82,10 @@ const Payrolls = () => {
   return (
     <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', textAlign: 'left' }}>
       <h2>Manajemen Penggajian (Payroll)</h2>
+      <p>
+        PPh 21 ditampilkan terpisah sebagai estimasi bulanan dengan PTKP TK/0 Rp54.000.000 dan tarif progresif.
+        Potongan lain tidak mencakup PPh 21.
+      </p>
 
       {canManage && <div style={{ border: '1px solid #ccc', padding: '15px', marginBottom: '25px', borderRadius: '6px' }}>
         <h3>Generate Slip Gaji Karyawan</h3>
@@ -192,7 +196,8 @@ const Payrolls = () => {
                 <th>Periode</th>
                 <th>Gaji Pokok</th>
                 <th>Tunjangan</th>
-                <th>Potongan</th>
+                <th>Potongan Lain</th>
+                <th>PPh 21 (Estimasi)</th>
                 <th>Total Diterima</th>
                 <th>Status</th>
               </tr>
@@ -200,7 +205,7 @@ const Payrolls = () => {
             <tbody>
               {payrolls.length === 0 ? (
                 <tr>
-                  <td colSpan="7" align="center">Belum ada slip gaji yang digenerate.</td>
+                  <td colSpan="8" align="center">Belum ada slip gaji yang digenerate.</td>
                 </tr>
               ) : (
                 payrolls.map((p) => (
@@ -210,6 +215,7 @@ const Payrolls = () => {
                     <td>{formatRupiah(p.basic_salary)}</td>
                     <td>{formatRupiah(p.allowances)}</td>
                     <td>{formatRupiah(p.deductions)}</td>
+                    <td>{formatRupiah(p.pph21)}</td>
                     <td><b>{formatRupiah(p.net_salary)}</b></td>
                     <td>
                       <span style={{ color: p.payment_status === 'Paid' ? 'green' : 'orange' }}>

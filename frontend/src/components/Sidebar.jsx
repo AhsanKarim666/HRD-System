@@ -11,6 +11,8 @@ import {
   Building2,
   Briefcase,
   ClipboardList,
+  Clock3,
+  Timer,
 } from 'lucide-react';
 import { getCurrentUser, hasManagementAccess } from '../api/session';
 
@@ -22,8 +24,10 @@ const Sidebar = ({ open, onClose }) => {
     { name: 'Karyawan', path: '/employees', icon: Users, adminOnly: true },
     { name: 'Departemen', path: '/departments', icon: Building2, adminOnly: true },
     { name: 'Jabatan', path: '/positions', icon: Briefcase, adminOnly: true },
+    { name: 'Shift Kerja', path: '/shifts', icon: Clock3, adminOnly: true },
     { name: 'Absensi', path: '/attendances', icon: CalendarCheck },
     { name: 'Cuti & Izin', path: '/leaves', icon: CalendarOff },
+    { name: 'Lembur', path: '/overtimes', icon: Timer },
     { name: 'Payroll', path: '/payrolls', icon: Wallet },
     { name: 'AI Analytics', path: '/ai-analytics', icon: Sparkles, adminOnly: true },
     { name: 'Riwayat Aktivitas', path: '/audit-logs', icon: ClipboardList, hrdOnly: true },

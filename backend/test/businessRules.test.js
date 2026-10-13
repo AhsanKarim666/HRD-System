@@ -2,7 +2,10 @@ const assert = require('node:assert/strict');
 const { after, test } = require('node:test');
 const db = require('../db');
 const { generatePayroll } = require('../controllers/payrollController');
+const { checkIn } = require('../controllers/attendanceController');
+const { requestOvertime, updateOvertimeStatus } = require('../controllers/overtimeController');
 const { requestLeave, updateLeaveStatus } = require('../controllers/leaveController');
+const { calculateAnnualPph21, calculateMonthlyPph21 } = require('../utils/tax');
 
 after(async () => {
   await db.end();
@@ -74,13 +77,91 @@ test('payroll uses the submitted salary and rejects deductions above gross pay',
       },
     });
     assert.equal(created.statusCode, 201);
-    assert.deepEqual(inserts[0], [1, '2026-10-01', 6000000, 500000, 250000, 6250000]);
+    assert.deepEqual(inserts[0], [1, '2026-10-01', 6000000, 500000, 250000, 83750, 6166250]);
 
     const excessiveDeduction = await invokeController(generatePayroll, {
       body: { employee_id: 1, month: 11, year: 2026, basic_salary: 500000, deductions: 600000 },
     });
     assert.equal(excessiveDeduction.statusCode, 400);
+
+    const deductionExcludingPph = await invokeController(generatePayroll, {
+      body: { employee_id: 1, month: 12, year: 2026, basic_salary: 6000000, deductions: 6000000 },
+    });
+    assert.equal(deductionExcludingPph.statusCode, 400);
     assert.equal(inserts.length, 1);
+  } finally {
+    db.query = originalQuery;
+  }
+});
+
+test('monthly PPh 21 estimate applies TK/0 PTKP and the annual job-expense cap', () => {
+  assert.equal(calculateMonthlyPph21(0), 0);
+  assert.equal(calculateMonthlyPph21(5000000), 12500);
+  assert.equal(calculateMonthlyPph21(6000000), 60000);
+  assert.equal(calculateAnnualPph21(100000000), 9000000);
+  assert.throws(() => calculateMonthlyPph21(-1), RangeError);
+});
+
+test('attendance lateness is measured against the assigned shift start', async () => {
+  const originalQuery = db.query;
+  let insertValues;
+  db.query = async (query, values) => {
+    if (query.includes('FROM employees e') && query.includes('LEFT JOIN attendances')) {
+      return { rows: [{ attendance_id: null, shift_id: 7, start_time: '09:00:00' }] };
+    }
+    if (query.includes('INSERT INTO attendances')) {
+      insertValues = values;
+      return { rows: [{ id: 3, status: values[4], shift_id: values[1] }] };
+    }
+    throw new Error('Unexpected attendance query');
+  };
+
+  try {
+    const response = await invokeController(checkIn, {
+      user: { role: 'Manager' },
+      body: { employee_id: 42, date: '2026-10-08', clock_in: '09:15:00' },
+    });
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.body.data.status, 'Late');
+    assert.deepEqual(insertValues, [42, 7, '2026-10-08', '09:15:00', 'Late']);
+  } finally {
+    db.query = originalQuery;
+  }
+});
+
+test('overtime rejects invalid requests before writing and prevents duplicate approval', async () => {
+  const originalQuery = db.query;
+  let queryCount = 0;
+  db.query = async (query) => {
+    queryCount += 1;
+    if (query.includes('INSERT INTO overtimes')) return { rows: [{ id: 6, status: 'Pending' }] };
+    if (query.includes('UPDATE overtimes')) return { rows: [] };
+    if (query.includes('SELECT status FROM overtimes')) return { rows: [{ status: 'Approved' }] };
+    throw new Error('Unexpected overtime query');
+  };
+
+  try {
+    const invalidRequest = await invokeController(requestOvertime, {
+      user: { role: 'Employee', employee_id: 7 },
+      body: { date: '2026-02-30', hours: 2, reason: 'Rilis' },
+    });
+    assert.equal(invalidRequest.statusCode, 400);
+    assert.equal(queryCount, 0);
+
+    const validRequest = await invokeController(requestOvertime, {
+      user: { role: 'Employee', employee_id: 7 },
+      body: { date: '2026-02-28', hours: 2.01, reason: 'Rilis' },
+    });
+    assert.equal(validRequest.statusCode, 201);
+    assert.equal(queryCount, 1);
+
+    const duplicateDecision = await invokeController(updateOvertimeStatus, {
+      params: { id: '4' },
+      body: { status: 'Rejected' },
+      user: { id: 2, role: 'HRD' },
+    });
+    assert.equal(duplicateDecision.statusCode, 409);
+    assert.equal(queryCount, 3);
   } finally {
     db.query = originalQuery;
   }
