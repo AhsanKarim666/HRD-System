@@ -4,11 +4,34 @@ const { calculateMonthlyPph21 } = require('../utils/tax');
 const { parseReportPeriod, sendCsv } = require('../utils/csv');
 
 const getPayrolls = async (req, res) => {
-  const { month, year, employee_id } = req.query;
-  const userEmployeeId = req.user.role === 'Employee' ? req.user.employee_id : null;
-  if (req.user.role === 'Employee' && !userEmployeeId) {
+  const queryParams = req.query || {};
+  const { month, year, employee_id } = queryParams;
+  const userEmployeeId = req.user && req.user.role === 'Employee' ? req.user.employee_id : null;
+  if (req.user && req.user.role === 'Employee' && !userEmployeeId) {
     return res.status(403).json({ success: false, message: 'Akun karyawan belum terhubung ke data karyawan.' });
   }
+
+  if (employee_id !== undefined && employee_id !== null && String(employee_id).trim() !== '') {
+    const normalizedEmployeeId = Number(employee_id);
+    if (!Number.isInteger(normalizedEmployeeId) || normalizedEmployeeId < 1) {
+      return res.status(400).json({ success: false, message: 'ID karyawan harus berupa angka bulat positif.' });
+    }
+  }
+
+  if (month !== undefined && month !== null && String(month).trim() !== '') {
+    const numericMonth = Number(month);
+    if (!Number.isInteger(numericMonth) || numericMonth < 1 || numericMonth > 12) {
+      return res.status(400).json({ success: false, message: 'Bulan harus berada dalam rentang 1-12.' });
+    }
+  }
+
+  if (year !== undefined && year !== null && String(year).trim() !== '') {
+    const numericYear = Number(year);
+    if (!Number.isInteger(numericYear) || numericYear < 2000 || numericYear > 2100) {
+      return res.status(400).json({ success: false, message: 'Tahun harus berada dalam rentang 2000-2100.' });
+    }
+  }
+
   if (userEmployeeId && employee_id && String(employee_id) !== String(userEmployeeId)) {
     return res.status(403).json({ success: false, message: 'Akses hanya diizinkan untuk slip gaji sendiri.' });
   }
@@ -38,20 +61,20 @@ const getPayrolls = async (req, res) => {
     `;
     const params = [];
 
-    if (month) {
-    params.push(month);
-    query += ` AND EXTRACT(MONTH FROM CAST(p.period AS DATE)) = $${params.length}`;
+    if (month !== undefined && month !== null && String(month).trim() !== '') {
+      params.push(Number(month));
+      query += ` AND EXTRACT(MONTH FROM CAST(p.period AS DATE)) = $${params.length}`;
     }
 
-    if (year) {
-    params.push(year);
-    query += ` AND EXTRACT(YEAR FROM CAST(p.period AS DATE)) = $${params.length}`;
+    if (year !== undefined && year !== null && String(year).trim() !== '') {
+      params.push(Number(year));
+      query += ` AND EXTRACT(YEAR FROM CAST(p.period AS DATE)) = $${params.length}`;
     }
 
     const targetEmployeeId = userEmployeeId || employee_id;
-    if (targetEmployeeId) {
-    params.push(targetEmployeeId);
-    query += ` AND p.employee_id = $${params.length}`;
+    if (targetEmployeeId !== undefined && targetEmployeeId !== null && String(targetEmployeeId).trim() !== '') {
+      params.push(Number(targetEmployeeId));
+      query += ` AND p.employee_id = $${params.length}`;
     }
 
     query += ' ORDER BY p.created_at DESC, p.id DESC';
@@ -110,7 +133,8 @@ const exportPayrolls = async (req, res) => {
 };
 
 const generatePayroll = async (req, res) => {
-  const { employee_id, month, year, basic_salary, allowances, deductions } = req.body;
+  const payload = req.body || {};
+  const { employee_id, month, year, basic_salary, allowances, deductions } = payload;
 
   const numericMonth = Number(month);
   const numericYear = Number(year);
@@ -215,8 +239,18 @@ const generatePayroll = async (req, res) => {
 };
 
 const updatePaymentStatus = async (req, res) => {
-  const { id } = req.params;
-  const { payment_status } = req.body;
+  const params = req.params || {};
+  const payload = req.body || {};
+  const { id } = params;
+  const { payment_status } = payload;
+
+  const numericId = Number(id);
+  if (!Number.isInteger(numericId) || numericId < 1) {
+    return res.status(400).json({
+      success: false,
+      message: 'ID payroll harus berupa angka bulat positif.',
+    });
+  }
 
   if (!['Paid', 'Unpaid'].includes(payment_status)) {
     return res.status(400).json({
@@ -231,13 +265,13 @@ const updatePaymentStatus = async (req, res) => {
      SET payment_status = $1
      WHERE id = $2
      RETURNING *`,
-    [payment_status, id]
+    [payment_status, numericId]
     );
 
     if (result.rows.length === 0) {
     return res.status(404).json({ success: false, message: 'Data payroll tidak ditemukan' });
     }
-    await recordAudit(req, 'payroll.payment_status', 'payroll', id, {
+    await recordAudit(req, 'payroll.payment_status', 'payroll', numericId, {
       payment_status,
     });
 

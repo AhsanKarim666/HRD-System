@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { after, test } = require('node:test');
 const db = require('../db');
-const { generatePayroll } = require('../controllers/payrollController');
+const { getPayrolls, generatePayroll, updatePaymentStatus } = require('../controllers/payrollController');
 const { checkIn } = require('../controllers/attendanceController');
 const { requestOvertime, updateOvertimeStatus } = require('../controllers/overtimeController');
 const { requestLeave, updateLeaveStatus } = require('../controllers/leaveController');
@@ -89,6 +89,52 @@ test('payroll uses the submitted salary and rejects deductions above gross pay',
     });
     assert.equal(deductionExcludingPph.statusCode, 400);
     assert.equal(inserts.length, 1);
+  } finally {
+    db.query = originalQuery;
+  }
+});
+
+test('payroll list validates query params and rejects invalid employee ids before database writes', async () => {
+  const originalQuery = db.query;
+  let queryCount = 0;
+  db.query = async () => {
+    queryCount += 1;
+    return { rows: [] };
+  };
+
+  try {
+    const invalidMonth = await invokeController(getPayrolls, {
+      user: { role: 'HRD' },
+      query: { month: '99', year: '2026' },
+    });
+    const invalidEmployeeId = await invokeController(getPayrolls, {
+      user: { role: 'HRD' },
+      query: { employee_id: 'abc' },
+    });
+
+    assert.equal(invalidMonth.statusCode, 400);
+    assert.equal(invalidEmployeeId.statusCode, 400);
+    assert.equal(queryCount, 0);
+  } finally {
+    db.query = originalQuery;
+  }
+});
+
+test('payroll controller fails gracefully without a request body and validates payment ids', async () => {
+  const originalQuery = db.query;
+  db.query = async () => {
+    throw new Error('Database should not be queried for invalid payloads');
+  };
+
+  try {
+    const missingBody = await invokeController(generatePayroll, {});
+    const invalidStatusId = await invokeController(updatePaymentStatus, {
+      params: { id: '0' },
+      body: { payment_status: 'Paid' },
+    });
+
+    assert.equal(missingBody.statusCode, 400);
+    assert.equal(invalidStatusId.statusCode, 400);
   } finally {
     db.query = originalQuery;
   }
