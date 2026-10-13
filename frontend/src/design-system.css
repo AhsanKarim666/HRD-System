@@ -665,6 +665,35 @@ main table[border='1'] {
     font-size: 23px;
   }
 
+  .operational-panel {
+    padding: 15px;
+  }
+
+  .operational-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .operational-export {
+    flex-wrap: wrap;
+  }
+
+  .operational-export-row {
+    margin: 12px 0;
+  }
+
+  .operational-date-filter {
+    justify-content: space-between;
+  }
+
+  .operational-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .operational-form-actions {
+    grid-column: auto;
+  }
+
   main form[style*='grid-template-columns'] {
     grid-template-columns: minmax(0, 1fr) !important;
   }
@@ -995,6 +1024,200 @@ main table[border='1'] {
   font-size: 14px;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
+}
+
+.operational-page {
+  width: min(100%, 1180px);
+  margin: 0 auto;
+}
+
+.operational-heading h1 {
+  margin: 4px 0 0;
+}
+
+.operational-heading p,
+.operational-section-heading p,
+.operational-toolbar p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.operational-panel {
+  margin-bottom: 24px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 19px;
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(25, 48, 38, 0.035);
+}
+
+.operational-section-heading {
+  margin-bottom: 16px;
+}
+
+.operational-section-heading h2,
+.operational-toolbar h2 {
+  margin: 0;
+}
+
+.operational-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.operational-form input:not([type='checkbox']),
+.operational-form select,
+.operational-date-filter input,
+.operational-export select {
+  width: 100%;
+}
+
+.operational-form-actions {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+}
+
+.operational-form-actions button,
+.operational-primary-button {
+  min-height: 36px;
+  border: 1px solid var(--accent) !important;
+  border-radius: 5px;
+  padding: 0 13px;
+  color: #fff !important;
+  background: var(--accent) !important;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.operational-form-actions button:hover,
+.operational-primary-button:hover:not(:disabled) {
+  background: var(--accent-strong) !important;
+}
+
+.operational-primary-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.operational-section {
+  min-width: 0;
+}
+
+.operational-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.operational-export,
+.operational-date-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.operational-export label,
+.operational-date-filter label {
+  color: #526158;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.operational-export select,
+.operational-export input,
+.operational-date-filter input {
+  min-height: 35px;
+  border: 1px solid #cbd7d0;
+  border-radius: 5px;
+  padding: 0 8px;
+  color: var(--ink);
+  background: #fff;
+  font-size: 11px;
+}
+
+.operational-export input {
+  width: 88px;
+}
+
+.operational-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+}
+
+.operational-table {
+  min-width: 760px;
+}
+
+.operational-table td {
+  white-space: nowrap;
+}
+
+.operational-table .operational-empty {
+  height: 84px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.operational-status {
+  display: inline-flex;
+  min-height: 23px;
+  align-items: center;
+  border-radius: 12px;
+  padding: 0 9px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.operational-status.is-success {
+  color: #176b4f;
+  background: #e7f2ed;
+}
+
+.operational-status.is-warning {
+  color: #875915;
+  background: #f8f0df;
+}
+
+.operational-status.is-danger {
+  color: #a84141;
+  background: var(--danger-soft);
+}
+
+.operational-feedback {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 18px;
+  color: var(--muted);
+  background: var(--surface);
+  text-align: center;
+}
+
+.operational-error {
+  margin: 0 0 16px;
+  border: 1px solid #eccac6;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #8c3434;
+  background: var(--danger-soft);
+  font-size: 12px;
+}
+
+.operational-note {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 9px 11px;
+  color: #526158;
+  background: var(--surface-muted);
+  font-size: 11px;
 }
 
 .ai-page-description {

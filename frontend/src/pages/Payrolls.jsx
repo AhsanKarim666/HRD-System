@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import axiosClient from '../api/axiosClient';
 import { getCurrentUser, hasManagementAccess } from '../api/session';
 import { downloadFile } from '../utils/downloadFile';
@@ -8,7 +8,8 @@ const Payrolls = () => {
   const canManage = hasManagementAccess(currentUser);
   const [payrolls, setPayrolls] = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const [selectedSlip, setSelectedSlip] = useState(null);
   const [downloadingSlip, setDownloadingSlip] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -25,8 +26,7 @@ const Payrolls = () => {
     deductions: 0,
   });
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = useCallback(async () => {
     try {
       const [payRes, empRes] = await Promise.all([
         axiosClient.get('/payrolls'),
@@ -34,16 +34,17 @@ const Payrolls = () => {
       ]);
       setPayrolls(payRes.data.data);
       setEmployees(empRes.data.data);
-    } catch (err) {
-      console.error('Gagal mengambil data payroll:', err);
+      setErrorMessage('');
+    } catch (error) {
+      setErrorMessage(error.response?.data?.message || 'Gagal memuat data payroll.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [canManage]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -72,7 +73,8 @@ const Payrolls = () => {
 
       await axiosClient.post('/payroll/generate', payload);
       alert('Kalkulasi payroll berhasil digenerate!');
-      fetchData();
+      setLoading(true);
+      await fetchData();
     } catch (err) {
       alert(err.response?.data?.message || 'Gagal generate payroll');
     }
@@ -158,24 +160,32 @@ const Payrolls = () => {
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', textAlign: 'left' }}>
-      <h2>Manajemen Penggajian (Payroll)</h2>
-      <p>
-        PPh 21 ditampilkan terpisah sebagai estimasi bulanan dengan PTKP TK/0 Rp54.000.000 dan tarif progresif.
-        Potongan lain tidak mencakup PPh 21.
-      </p>
+    <div className="operational-page payroll-page">
+      <header className="page-heading operational-heading">
+        <div className="dashboard-eyebrow">KOMPENSASI & BENEFIT</div>
+        <h1>Penggajian</h1>
+        <p>
+          PPh 21 ditampilkan terpisah sebagai estimasi bulanan dengan PTKP TK/0 Rp54.000.000 dan tarif progresif.
+          Potongan lain tidak mencakup PPh 21.
+        </p>
+      </header>
 
-      {canManage && <div style={{ border: '1px solid #ccc', padding: '15px', marginBottom: '25px', borderRadius: '6px' }}>
-        <h3>Generate Slip Gaji Karyawan</h3>
-        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+      {errorMessage && <p className="operational-error" role="alert">{errorMessage}</p>}
+
+      {canManage && <section className="operational-panel">
+        <div className="operational-section-heading">
+          <h2>Generate Slip Gaji</h2>
+          <p>Lengkapi periode dan komponen penghasilan untuk membuat slip karyawan.</p>
+        </div>
+        <form className="operational-form" onSubmit={handleSubmit}>
           <div>
-            <label>Pilih Karyawan: </label>
+            <label htmlFor="payroll-employee">Pilih Karyawan</label>
             <select
+              id="payroll-employee"
               name="employee_id"
               value={formData.employee_id}
               onChange={handleEmployeeChange}
               required
-              style={{ width: '100%', padding: '6px' }}
             >
               <option value="">-- Pilih Karyawan --</option>
               {employees.map((emp) => (
@@ -187,12 +197,12 @@ const Payrolls = () => {
           </div>
 
           <div>
-            <label>Bulan: </label>
+            <label htmlFor="payroll-month">Bulan</label>
             <select
+              id="payroll-month"
               name="month"
               value={formData.month}
               onChange={handleChange}
-              style={{ width: '100%', padding: '6px' }}
             >
               {[
                 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -206,20 +216,21 @@ const Payrolls = () => {
           </div>
 
           <div>
-            <label>Tahun: </label>
+            <label htmlFor="payroll-year">Tahun</label>
             <input
+              id="payroll-year"
               type="number"
               name="year"
               value={formData.year}
               onChange={handleChange}
               required
-              style={{ width: '100%', padding: '6px' }}
             />
           </div>
 
           <div>
-            <label>Gaji Pokok Rp: </label>
+            <label htmlFor="payroll-basic-salary">Gaji Pokok (Rp)</label>
             <input
+              id="payroll-basic-salary"
               type="number"
               name="basic_salary"
               min="0"
@@ -227,47 +238,48 @@ const Payrolls = () => {
               value={formData.basic_salary}
               onChange={handleChange}
               required
-              style={{ width: '100%', padding: '6px' }}
             />
           </div>
 
           <div>
-            <label>Tunjangan (Allowances) Rp: </label>
+            <label htmlFor="payroll-allowances">Tunjangan (Rp)</label>
             <input
+              id="payroll-allowances"
               type="number"
               name="allowances"
               value={formData.allowances}
               onChange={handleChange}
-              style={{ width: '100%', padding: '6px' }}
             />
           </div>
 
           <div>
-            <label>Potongan (Deductions) Rp: </label>
+            <label htmlFor="payroll-deductions">Potongan Lain (Rp)</label>
             <input
+              id="payroll-deductions"
               type="number"
               name="deductions"
               value={formData.deductions}
               onChange={handleChange}
-              style={{ width: '100%', padding: '6px' }}
             />
           </div>
 
-          <div style={{ gridColumn: 'span 2', marginTop: '10px' }}>
-            <button type="submit" style={{ padding: '8px 16px', cursor: 'pointer' }}>
+          <div className="operational-form-actions">
+            <button type="submit">
               Hitung & Generate Gaji
             </button>
           </div>
         </form>
-      </div>}
+      </section>}
 
-      {/* Tabel Riwayat Gaji */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <h3>Daftar Slip Payroll</h3>
+      <section className="operational-section">
+        <div className="operational-toolbar">
+          <div>
+            <h2>Daftar Slip Gaji</h2>
+            <p>Riwayat penggajian karyawan berdasarkan periode.</p>
+          </div>
           {canExport && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <label htmlFor="payroll-export-month">Periode rekap:</label>
+            <div className="operational-export">
+              <label htmlFor="payroll-export-month">Periode rekap</label>
               <select
                 id="payroll-export-month"
                 value={exportMonth}
@@ -279,67 +291,66 @@ const Payrolls = () => {
                 ].map((month, index) => <option key={month} value={index + 1}>{month}</option>)}
               </select>
               <input
-                aria-label="Tahun rekap penggajian"
                 type="number"
                 min="2000"
                 max="2100"
                 value={exportYear}
                 onChange={(event) => setExportYear(event.target.value)}
-                style={{ width: '90px' }}
+                aria-label="Tahun rekap penggajian"
               />
-              <button type="button" disabled={exporting} onClick={exportPayrollCsv}>
+              <button className="operational-primary-button" type="button" disabled={exporting} onClick={exportPayrollCsv}>
                 {exporting ? 'Menyiapkan...' : 'Export Rekap Penggajian CSV'}
               </button>
             </div>
           )}
         </div>
-        {loading ? (
-          <p>Memuat data payroll...</p>
-        ) : (
-          <table border="1" cellPadding="8" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#333', color: '#fff' }}>
-                <th>Nama Karyawan</th>
-                <th>Periode</th>
-                <th>Gaji Pokok</th>
-                <th>Tunjangan</th>
-                <th>Potongan Lain</th>
-                <th>PPh 21 (Estimasi)</th>
-                <th>Total Diterima</th>
-                <th>Status</th>
-                <th>Slip</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payrolls.length === 0 ? (
+        {loading ? <p className="operational-feedback" role="status">Memuat data payroll...</p> : (
+          <div className="operational-table-wrap">
+            <table className="operational-table">
+              <thead>
                 <tr>
-                  <td colSpan="9" align="center">Belum ada slip gaji yang digenerate.</td>
+                  <th>Nama Karyawan</th>
+                  <th>Periode</th>
+                  <th>Gaji Pokok</th>
+                  <th>Tunjangan</th>
+                  <th>Potongan Lain</th>
+                  <th>PPh 21 (Estimasi)</th>
+                  <th>Total Diterima</th>
+                  <th>Status</th>
+                  <th>Slip</th>
                 </tr>
-              ) : (
-                payrolls.map((p) => (
-                  <tr key={p.id}>
-                    <td>{p.full_name}</td>
-                    <td>{p.period ? p.period.slice(0, 7) : '-'}</td>
-                    <td>{formatRupiah(p.basic_salary)}</td>
-                    <td>{formatRupiah(p.allowances)}</td>
-                    <td>{formatRupiah(p.deductions)}</td>
-                    <td>{formatRupiah(p.pph21)}</td>
-                    <td><b>{formatRupiah(p.net_salary)}</b></td>
-                    <td>
-                      <span style={{ color: p.payment_status === 'Paid' ? 'green' : 'orange' }}>
-                        {p.payment_status || 'Unpaid'}
-                      </span>
-                    </td>
-                    <td>
-                      <button type="button" onClick={() => setSelectedSlip(p)}>Lihat Slip</button>
-                    </td>
+              </thead>
+              <tbody>
+                {payrolls.length === 0 ? (
+                  <tr>
+                    <td colSpan="9" className="operational-empty">Belum ada slip gaji untuk ditampilkan.</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  payrolls.map((p) => (
+                    <tr key={p.id}>
+                      <td>{p.full_name}</td>
+                      <td>{p.period ? p.period.slice(0, 7) : '-'}</td>
+                      <td>{formatRupiah(p.basic_salary)}</td>
+                      <td>{formatRupiah(p.allowances)}</td>
+                      <td>{formatRupiah(p.deductions)}</td>
+                      <td>{formatRupiah(p.pph21)}</td>
+                      <td><b>{formatRupiah(p.net_salary)}</b></td>
+                      <td>
+                        <span className={`operational-status ${p.payment_status === 'Paid' ? 'is-success' : 'is-warning'}`}>
+                          {p.payment_status || 'Unpaid'}
+                        </span>
+                      </td>
+                      <td>
+                        <button type="button" onClick={() => setSelectedSlip(p)}>Lihat Slip</button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
+      </section>
       {selectedSlip && (
         <div
           role="presentation"

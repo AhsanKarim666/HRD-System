@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import axiosClient from '../api/axiosClient';
 import { getCurrentUser } from '../api/session';
 import { downloadFile } from '../utils/downloadFile';
@@ -9,7 +9,8 @@ const Attendances = () => {
   const [attendances, setAttendances] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const [clockingOutId, setClockingOutId] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [exportMonth, setExportMonth] = useState(new Date().getMonth() + 1);
@@ -23,8 +24,7 @@ const Attendances = () => {
     clock_in: '08:00',
   });
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = useCallback(async () => {
     try {
       const [attRes, empRes] = await Promise.all([
         axiosClient.get(`/attendances?date=${selectedDate}`),
@@ -32,16 +32,17 @@ const Attendances = () => {
       ]);
       setAttendances(attRes.data.data);
       setEmployees(empRes.data.data);
-    } catch (err) {
-      console.error('Gagal mengambil data absensi:', err);
+      setErrorMessage('');
+    } catch (error) {
+      setErrorMessage(error.response?.data?.message || 'Gagal memuat data presensi.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [isEmployee, selectedDate]);
 
   useEffect(() => {
     fetchData();
-  }, [selectedDate]);
+  }, [fetchData]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -55,7 +56,8 @@ const Attendances = () => {
         employee_id: isEmployee ? currentUser.employee_id : formData.employee_id,
       });
       alert('Presensi berhasil dicatat!');
-      fetchData();
+      setLoading(true);
+      await fetchData();
     } catch (err) {
       alert(err.response?.data?.message || 'Gagal mencatat presensi');
     }
@@ -68,6 +70,7 @@ const Attendances = () => {
         employee_id: attendance.employee_id,
         date: attendance.date ? attendance.date.split('T')[0] : selectedDate,
       });
+      setLoading(true);
       await fetchData();
     } catch (err) {
       alert(err.response?.data?.message || 'Gagal mencatat jam pulang');
@@ -93,91 +96,107 @@ const Attendances = () => {
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', textAlign: 'left' }}>
-      <h2>Manajemen Presensi & Absensi</h2>
+    <div className="operational-page attendance-page">
+      <header className="page-heading operational-heading">
+        <div className="dashboard-eyebrow">KEHADIRAN KARYAWAN</div>
+        <h1>Presensi</h1>
+        <p>Pencatatan kehadiran dan rekap jam kerja karyawan.</p>
+      </header>
+      {errorMessage && <p className="operational-error" role="alert">{errorMessage}</p>}
 
-      {/* Form Input Presensi */}
-      <div style={{ border: '1px solid #ccc', padding: '15px', marginBottom: '25px', borderRadius: '6px' }}>
-        <h3>Catat Kehadiran Karyawan</h3>
-        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+      <section className="operational-panel">
+        <div className="operational-section-heading">
+          <h2>Catat Kehadiran</h2>
+          <p>Status terlambat dihitung berdasarkan jam mulai shift karyawan.</p>
+        </div>
+        <form className="operational-form" onSubmit={handleSubmit}>
           {isEmployee ? (
-            <p style={{ gridColumn: 'span 2' }}>Absensi untuk {currentUser?.name || 'akun Anda'}.</p>
+            <p className="operational-note">Absensi untuk {currentUser?.name || 'akun Anda'}.</p>
           ) : (
-          <div>
-            <label>Karyawan: </label>
-            <select 
-              name="employee_id" 
-              value={formData.employee_id} 
-              onChange={handleChange} 
-              required 
-              style={{ width: '100%', padding: '6px' }}
-            >
-              <option value="">-- Pilih Karyawan --</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.nik} - {emp.full_name}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div>
+              <label htmlFor="attendance-employee">Karyawan</label>
+              <select
+                id="attendance-employee"
+                name="employee_id"
+                value={formData.employee_id}
+                onChange={handleChange}
+                required
+              >
+                <option value="">-- Pilih Karyawan --</option>
+                {employees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.nik} - {emp.full_name}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
 
-          {!isEmployee && <div>
-            <label>Tanggal: </label>
-            <input 
-              type="date" 
-              name="date" 
-              value={formData.date} 
-              onChange={handleChange} 
-              required 
-              style={{ width: '100%', padding: '6px' }}
-            />
-          </div>}
+          {!isEmployee && (
+            <div>
+              <label htmlFor="attendance-form-date">Tanggal</label>
+              <input
+                id="attendance-form-date"
+                type="date"
+                name="date"
+                value={formData.date}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          )}
 
-          {!isEmployee && <div>
-            <label>Jam Masuk (Check-in): </label>
-            <input 
-              type="time" 
-              name="clock_in" 
-              value={formData.clock_in} 
-              onChange={handleChange} 
-              required 
-              style={{ width: '100%', padding: '6px' }}
-            />
-          </div>}
+          {!isEmployee && (
+            <div>
+              <label htmlFor="attendance-form-clock-in">Jam Masuk</label>
+              <input
+                id="attendance-form-clock-in"
+                type="time"
+                name="clock_in"
+                value={formData.clock_in}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          )}
 
           <div>
-            <label>Catatan: </label>
-            <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', color: '#475569' }}>
-              Status mengikuti jam mulai shift karyawan (default Reguler 08:30); check-in setelah jam mulai berstatus Late.
-            </div>
+            <label>Ketentuan</label>
+            <p className="operational-note">
+              Karyawan tanpa shift mengikuti jam mulai default Reguler pukul 08.30.
+            </p>
           </div>
 
-          <div style={{ gridColumn: 'span 2', marginTop: '10px' }}>
-            <button type="submit" style={{ padding: '8px 16px', cursor: 'pointer' }}>
+          <div className="operational-form-actions">
+            <button type="submit">
               Simpan Presensi
             </button>
           </div>
         </form>
-      </div>
+      </section>
 
-      {/* Filter & Tabel Data Absensi */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <h3>Log Absensi Harian</h3>
+      <section className="operational-section">
+        <div className="operational-toolbar">
           <div>
-            <label>Filter Tanggal: </label>
+            <h2>Log Presensi Harian</h2>
+            <p>Data check-in, check-out, dan status kehadiran.</p>
+          </div>
+          <div className="operational-date-filter">
+            <label htmlFor="attendance-date">Tanggal</label>
             <input 
+              id="attendance-date"
               type="date" 
               value={selectedDate} 
-              onChange={(e) => setSelectedDate(e.target.value)} 
-              style={{ padding: '5px' }}
+              onChange={(event) => {
+                setLoading(true);
+                setSelectedDate(event.target.value);
+              }}
             />
           </div>
         </div>
         {canExport && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
-            <label htmlFor="attendance-export-month">Periode rekap:</label>
+          <div className="operational-export operational-export-row">
+            <label htmlFor="attendance-export-month">Periode rekap</label>
             <select
               id="attendance-export-month"
               value={exportMonth}
@@ -189,80 +208,78 @@ const Attendances = () => {
               ].map((month, index) => <option key={month} value={index + 1}>{month}</option>)}
             </select>
             <input
-              aria-label="Tahun rekap presensi"
               type="number"
               min="2000"
               max="2100"
               value={exportYear}
               onChange={(event) => setExportYear(event.target.value)}
-              style={{ width: '90px' }}
+              aria-label="Tahun rekap presensi"
             />
-            <button type="button" disabled={exporting} onClick={exportAttendanceCsv}>
+            <button className="operational-primary-button" type="button" disabled={exporting} onClick={exportAttendanceCsv}>
               {exporting ? 'Menyiapkan...' : 'Export Rekap Presensi CSV'}
             </button>
           </div>
         )}
 
-        {loading ? (
-          <p>Memuat log absensi...</p>
-        ) : (
-          <table border="1" cellPadding="8" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#333', color: '#fff' }}>
-                <th>NIK</th>
-                <th>Nama Karyawan</th>
-                <th>Departemen</th>
-                <th>Shift</th>
-                <th>Tanggal</th>
-                <th>Jam Masuk</th>
-                <th>Jam Keluar</th>
-                <th>Status</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {attendances.length === 0 ? (
+        {loading ? <p className="operational-feedback" role="status">Memuat log presensi...</p> : (
+          <div className="operational-table-wrap">
+            <table className="operational-table">
+              <thead>
                 <tr>
-                  <td colSpan="9" align="center">Tidak ada log absensi pada tanggal ini.</td>
+                  <th>NIK</th>
+                  <th>Nama Karyawan</th>
+                  <th>Departemen</th>
+                  <th>Shift</th>
+                  <th>Tanggal</th>
+                  <th>Jam Masuk</th>
+                  <th>Jam Keluar</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
                 </tr>
-              ) : (
-                attendances.map((att) => (
-                  <tr key={att.id}>
-                    <td>{att.nik}</td>
-                    <td>{att.full_name}</td>
-                    <td>{att.department_name || '-'}</td>
-                    <td>{att.shift_name ? `${att.shift_name} (${String(att.shift_start_time).slice(0, 5)}-${String(att.shift_end_time).slice(0, 5)})` : '-'}</td>
-                    <td>{att.date ? att.date.split('T')[0] : '-'}</td>
-                    <td>{att.clock_in || '-'}</td>
-                    <td>{att.clock_out || '-'}</td>
-                    <td>
-                      <b style={{ 
-                        color: att.status === 'Present' ? 'green' : att.status === 'Late' ? 'orange' : 'red' 
-                      }}>
-                        {att.status}
-                      </b>
-                    </td>
-                    <td>
-                      {att.clock_out ? (
-                        'Selesai'
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={clockingOutId === att.id}
-                          onClick={() => handleClockOut(att)}
-                          style={{ padding: '5px 10px', cursor: 'pointer' }}
-                        >
-                          {clockingOutId === att.id ? 'Menyimpan...' : 'Check-out'}
-                        </button>
-                      )}
-                    </td>
+              </thead>
+              <tbody>
+                {attendances.length === 0 ? (
+                  <tr>
+                    <td colSpan="9" className="operational-empty">Tidak ada presensi pada tanggal ini.</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  attendances.map((att) => (
+                    <tr key={att.id}>
+                      <td>{att.nik}</td>
+                      <td>{att.full_name}</td>
+                      <td>{att.department_name || '-'}</td>
+                      <td>{att.shift_name ? `${att.shift_name} (${String(att.shift_start_time).slice(0, 5)}-${String(att.shift_end_time).slice(0, 5)})` : '-'}</td>
+                      <td>{att.date ? att.date.split('T')[0] : '-'}</td>
+                      <td>{att.clock_in || '-'}</td>
+                      <td>{att.clock_out || '-'}</td>
+                      <td>
+                        <b className={`operational-status ${
+                          att.status === 'Present' ? 'is-success' : att.status === 'Late' ? 'is-warning' : 'is-danger'
+                        }`}>
+                          {att.status}
+                        </b>
+                      </td>
+                      <td>
+                        {att.clock_out ? (
+                          'Selesai'
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={clockingOutId === att.id}
+                            onClick={() => handleClockOut(att)}
+                          >
+                            {clockingOutId === att.id ? 'Menyimpan...' : 'Check-out'}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
+      </section>
     </div>
   );
 };

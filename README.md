@@ -14,8 +14,9 @@ Proyek ini dibuat sebagai prototype aplikasi HRIS (Human Resource Information Sy
 - Pengajuan, approval, dan rekap jam lembur harian
 - Payroll / gaji karyawan
 - Estimasi PPh 21 pada slip payroll
-- Unduh slip gaji PDF dan ekspor rekap presensi/penggajian bulanan CSV untuk HRD
-- Activity log untuk approval cuti/lembur, perubahan shift, dan generate payroll
+- Unduh slip gaji PDF serta ekspor rekap presensi dan payroll bulanan ke CSV untuk HRD
+- Activity log untuk aktivitas operasional penting
+- Seeder data demo untuk karyawan, presensi, payroll, dan relasi organisasi
 - Dashboard ringkasan operasional
 - Review performa karyawan berbasis AI
 
@@ -105,11 +106,17 @@ hrd-system/
 - Pengajuan lembur memiliki status Pending, Approved, atau Rejected. Total jam harian menghitung pengajuan yang telah disetujui.
 - Estimasi PPh 21 memakai tarif progresif tahunan, PTKP TK/0 Rp54.000.000, dan asumsi biaya jabatan 5% (maksimal Rp500.000 per bulan). Nilai pajak tahunan diannualisasi menjadi estimasi bulanan; hasil bukan pengganti perhitungan payroll/pajak resmi.
 
-### 7. Dashboard HR
+### 7. Pelaporan dan activity log
+- Slip gaji dapat diunduh sebagai PDF dari daftar slip payroll.
+- HRD dapat mengunduh rekap presensi dan penggajian per bulan dalam format CSV yang dapat dibuka menggunakan aplikasi spreadsheet.
+- Activity Log tersedia untuk HRD dan mencatat aktivitas operasional, termasuk approval cuti/lembur, perubahan shift, serta generate payroll.
+- Seeder menyediakan 12 karyawan demo, relasi departemen/jabatan/shift, histori presensi hari kerja 30 hari terakhir, dan payroll bulan berjalan.
+
+### 8. Dashboard HR
 - Ringkasan performa dan aktivitas utama
 - Daftar jumlah karyawan, kehadiran, cuti, dan payroll
 
-### 8. AI Analytics
+### 9. AI Analytics
 - Evaluasi performa karyawan berdasarkan bulan dan tahun
 - Menggabungkan data absensi dan cuti
 - Menyediakan ringkasan evaluasi dalam bahasa Indonesia
@@ -204,6 +211,8 @@ http://localhost:5000
 
 - Database PostgreSQL harus aktif sebelum menjalankan backend
 - Saat pertama kali dijalankan, backend akan melakukan inisialisasi tabel dan menambahkan data awal (seed)
+- Jalankan `npm run seed` dari folder `backend` untuk menambahkan atau melengkapi data demo. Seeder melewati database yang sudah memiliki pengguna ketika dipanggil otomatis saat inisialisasi server.
+- Rekap saat ini diunduh sebagai CSV, bukan berkas Excel `.xlsx`. CSV dapat dibuka di Microsoft Excel atau aplikasi spreadsheet lain.
 - Integrasi AI memerlukan API key Gemini yang valid untuk fungsi review kinerja
 - Project ini masih bersifat prototype / pengembangan awal dan dapat dikembangkan lebih lanjut untuk kebutuhan produksi
 
@@ -216,9 +225,7 @@ Project ini berada dalam tahap pengembangan functional prototype HR information 
 Proyek ini dibuat untuk kebutuhan pembelajaran dan pengembangan sistem informasi HR digital. Untuk pengembangan lebih lanjut, bisa dilakukan penambahan fitur seperti:
 
 - notifikasi email
-- export laporan PDF/Excel
 - role permission yang lebih kompleks
-- audit log
 - dashboard dengan grafik interaktif
 - integrasi cloud hosting
 
